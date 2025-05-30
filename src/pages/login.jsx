@@ -14,7 +14,7 @@ const Login = () => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      navigate('/kb');
+      navigate('/jobs');
     }
   }, [navigate]);
 
@@ -42,7 +42,7 @@ const Login = () => {
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       toast.success('Logged in successfully');
-      navigate('/kb');
+      navigate('/jobs');
     } catch (err) {
       console.error(err);
       const message = err?.response?.data?.message || 'Authentication failed';
