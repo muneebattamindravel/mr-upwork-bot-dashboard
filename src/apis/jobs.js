@@ -1,0 +1,10 @@
+// src/apis/jobs.js
+import axios from './axios';
+
+/**
+ * Fetch filtered jobs based on provided filters
+ * @param {Object} filters
+ */
+export const getFilteredJobs = (filters) =>
+  axios.get('/jobs', { params: filters });
+

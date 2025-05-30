@@ -75,8 +75,8 @@ const Sidebar = () => {
         </button>
       </div>
 
-      {/* Desktop Sidebar */}
-      <div className="hidden md:block w-64 h-screen bg-gradient-to-b from-purple-700 to-purple-900 text-white p-4">
+      {/* Fixed Sidebar (Desktop) */}
+      <div className="hidden md:flex flex-col fixed top-0 left-0 h-full w-64 bg-gradient-to-b from-purple-700 to-purple-900 text-white p-4 z-30">
         <h2 className="text-lg font-bold mb-6">Admin Panel</h2>
         {navLinks}
       </div>
