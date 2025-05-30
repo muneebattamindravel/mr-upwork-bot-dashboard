@@ -184,7 +184,7 @@ const JobsPage = () => {
                         </div>
                     </div>
 
-                    {/* ⚖️ Avg Hourly Rate */}
+                    {/* ⚖️ Avg Hourly Rate. */}
                     <div className="flex flex-col md:w-[190px]">
                         <Label className="field-label">⚖️ Avg Hourly Rate</Label>
                         <div className="flex items-center gap-2">
