@@ -21,6 +21,16 @@ const Sidebar = () => {
   const navLinks = (
     <nav className="space-y-2 mt-6">
       <NavLink
+        to="/jobs"
+        className={({ isActive }) =>
+          `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
+        }
+        onClick={() => setIsOpen(false)}
+      >
+        <Briefcase className="w-5 h-5" />
+        Jobs
+      </NavLink>
+      <NavLink
         to="/kb"
         className={({ isActive }) =>
           `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
@@ -39,16 +49,6 @@ const Sidebar = () => {
       >
         <BarChart className="w-5 h-5" />
         Analytics
-      </NavLink>
-      <NavLink
-        to="/jobs"
-        className={({ isActive }) =>
-          `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
-        }
-        onClick={() => setIsOpen(false)}
-      >
-        <Briefcase className="w-5 h-5" />
-        Jobs
       </NavLink>
       <NavLink
         to="/settings"

@@ -87,3 +87,25 @@ body {
 .alert-dialog-overlay {
   @apply fixed inset-0 z-50 backdrop-blur-md bg-white/50;
 }
+
+/* Basic toggle switch using input[type=checkbox] */
+input[type="checkbox"].switch {
+  @apply appearance-none w-10 h-6 bg-gray-300 rounded-full relative cursor-pointer transition;
+}
+
+input[type="checkbox"].switch::before {
+  content: "";
+  @apply absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-all;
+}
+
+input[type="checkbox"].switch:checked {
+  @apply bg-blue-600;
+}
+
+input[type="checkbox"].switch:checked::before {
+  @apply translate-x-[1.25rem]; /* move right */
+}
+
+.select-trigger > svg {
+  display: none !important;
+}
