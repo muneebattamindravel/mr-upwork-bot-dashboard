@@ -1,21 +1,21 @@
+// src/components/Layout.jsx
 import React from 'react';
-import Topbar from './Topbar';
 import Sidebar from './Sidebar';
+import Topbar from './Topbar';
 
-// src/layouts/Layout.jsx (or wherever your main layout is)
-export default function Layout({ children }) {
+const Layout = ({ children }) => {
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex">
       {/* Sidebar */}
-      <aside className="w-[250px] bg-white border-r h-full fixed z-10">
-        {/* Your Sidebar Content */}
-        <Sidebar />
-      </aside>
+      <Sidebar />
 
-      {/* Main Content */}
-      <main className="ml-[250px] flex-1 overflow-y-auto bg-gray-50">
-        {children}
-      </main>
+      {/* Content area with Topbar */}
+      <div className="flex flex-col w-full min-h-screen md:ml-64">
+        <Topbar />
+        <main className="p-4 flex-grow">{children}</main>
+      </div>
     </div>
   );
-}
+};
+
+export default Layout;

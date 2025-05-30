@@ -10,36 +10,36 @@ import JobsPage from './pages/jobsPage';
 
 const App = () => {
   return (
-    <BrowserRouter>
-      <Toaster richColors position="top-right" />
-      <Routes>
-        <Route path="/" element={<Navigate to="/jobs" />} />
-        <Route path="/login" element={<Login />} />
+      <BrowserRouter>
+        <Toaster richColors position="top-right" />
+        <Routes>
+          <Route path="/" element={<Navigate to="/jobs" />} />
+          <Route path="/login" element={<Login />} />
 
-        <Route
-          path="/kb"
-          element={
-            <PrivateRoute>
-              <Layout>
-                <KBManager />
-              </Layout>
-            </PrivateRoute>
-          }
-        />
+          <Route
+            path="/kb"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <KBManager />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
 
-        <Route
-          path="/jobs"
-          element={
-            <PrivateRoute>
-              <Layout>
-                <JobsPage />
-              </Layout>
-            </PrivateRoute>
-          }
-        />
-      </Routes>
+          <Route
+            path="/jobs"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <JobsPage />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+        </Routes>
 
-    </BrowserRouter>
+      </BrowserRouter>
   );
 };
 
