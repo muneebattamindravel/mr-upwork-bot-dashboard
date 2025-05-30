@@ -33,6 +33,9 @@ const JobsPage = () => {
     const [loading, setLoading] = useState(false);
     const [showFilters, setShowFilters] = useState(true);
     const [dateRange, setDateRange] = useState('last24h');
+    const [sortBy, setSortBy] = useState('postedDate');
+    const [sortOrder, setSortOrder] = useState('desc');
+    const [allJobs, setAllJobs] = useState([]);
 
     const applyDateRange = (range) => {
         const now = new Date();
@@ -71,8 +74,12 @@ const JobsPage = () => {
                     query[key] = value;
                 }
             });
+
             const response = await getFilteredJobs(query);
-            setJobs(response.data.jobs || []);
+            const fetchedJobs = response.data.jobs || [];
+
+            setAllJobs(fetchedJobs); // 🟡 Save full list
+            sortJobs(fetchedJobs, sortBy); // 🟢 Immediately sort with current criteria
         } catch (err) {
             toast.error('Failed to fetch jobs');
             console.error('[Fetch Jobs Error]', err);
@@ -81,9 +88,51 @@ const JobsPage = () => {
         }
     };
 
+
     useEffect(() => {
         applyDateRange(dateRange);
     }, []);
+
+    useEffect(() => {
+        if (allJobs.length > 0) {
+            const sorted = [...allJobs].sort((a, b) => {
+                const fieldA = a[sortBy];
+                const fieldB = b[sortBy];
+
+                if (fieldA === undefined || fieldB === undefined) return 0;
+
+                if (typeof fieldA === 'number') {
+                    return sortOrder === 'asc' ? fieldA - fieldB : fieldB - fieldA;
+                } else if (typeof fieldA === 'string') {
+                    return sortOrder === 'asc'
+                        ? fieldA.localeCompare(fieldB)
+                        : fieldB.localeCompare(fieldA);
+                } else {
+                    return 0;
+                }
+            });
+
+            setJobs(sorted);
+        }
+    }, [sortBy, sortOrder, allJobs]);
+
+
+
+
+    const sortJobs = (jobList, sortKey) => {
+        const sorted = [...jobList].sort((a, b) => {
+            const aVal = a[sortKey];
+            const bVal = b[sortKey];
+
+            if (typeof aVal === 'string') {
+                return aVal.localeCompare(bVal);
+            }
+
+            return bVal - aVal; // descending order
+        });
+
+        setJobs(sorted);
+    };
 
     const handleChange = (e) => {
         const { name, value, type } = e.target;
@@ -107,6 +156,8 @@ const JobsPage = () => {
         const cleared = { ...defaultFilters };
         setFilters(cleared);
         setDateRange('last24h');
+        setSortBy('postedDate');
+        setSortOrder('desc');
         fetchJobs(cleared);
     };
 
@@ -258,6 +309,42 @@ const JobsPage = () => {
                             </Select>
                         </div>
 
+                        <div className="flex flex-col md:w-[180px]">
+                            <Label className="field-label">📊 Sort By</Label>
+                            <Select value={sortBy} onValueChange={setSortBy}>
+                                <SelectTrigger className="select-trigger">
+                                    <SelectValue placeholder="Select field" />
+                                </SelectTrigger>
+                                <SelectContent className="select-content bg-white text-black">
+                                    <SelectItem value="postedDate">📅 Posted Date</SelectItem>
+                                    <SelectItem value="clientRating">⭐ Client Rating</SelectItem>
+                                    <SelectItem value="clientSpend">💰 Client Spend</SelectItem>
+                                    <SelectItem value="avgHourlyRate">⚖️ Avg Hourly Rate</SelectItem>
+                                    <SelectItem value="minBudget">💵 Min Budget</SelectItem>
+                                    <SelectItem value="maxBudget">💵 Max Budget</SelectItem>
+                                    <SelectItem value="clientCountry">🌍 Client Country</SelectItem>
+                                    <SelectItem value="pricingModel">💼 Job Type</SelectItem>
+                                </SelectContent>
+
+                            </Select>
+                        </div>
+
+                        <div className="flex flex-col md:w-[140px]">
+                            <Label className="field-label">⬇️ Order</Label>
+                            <Select value={sortOrder} onValueChange={setSortOrder}>
+                                <SelectTrigger className="select-trigger">
+                                    <SelectValue placeholder="asc/desc" />
+                                </SelectTrigger>
+                                <SelectContent className="select-content bg-white text-black">
+                                    <SelectItem value="asc">Ascending</SelectItem>
+                                    <SelectItem value="desc">Descending</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+
+
+
                         <div className="md:ml-auto md:mt-4">
                             <LoadingButton loading={loading} onClick={() => fetchJobs()} className="btn-primary h-10 px-6">
                                 Apply
@@ -276,6 +363,7 @@ const JobsPage = () => {
                     jobs.map((job, idx) => <JobCard key={idx} job={job} />)
                 )}
             </div>
+
         </div>
     );
 };
