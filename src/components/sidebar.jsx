@@ -41,6 +41,16 @@ const Sidebar = () => {
         Knowledge Base
       </NavLink>
       <NavLink
+        to="/bots"
+        className={({ isActive }) =>
+          `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
+        }
+        onClick={() => setIsOpen(false)}
+      >
+        <BookOpen className="w-5 h-5" />
+        Bot Monitor
+      </NavLink>
+      <NavLink
         to="/analytics"
         className={({ isActive }) =>
           `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`

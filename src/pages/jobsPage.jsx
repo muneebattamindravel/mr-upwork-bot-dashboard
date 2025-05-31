@@ -36,6 +36,7 @@ const JobsPage = () => {
     const [sortBy, setSortBy] = useState('postedDate');
     const [sortOrder, setSortOrder] = useState('desc');
     const [allJobs, setAllJobs] = useState([]);
+    const [totalJobs, setTotalJobs] = useState(0); // ✅ New state
 
     const applyDateRange = (range) => {
         const now = new Date();
@@ -76,7 +77,8 @@ const JobsPage = () => {
             });
 
             const response = await getFilteredJobs(query);
-            const fetchedJobs = response.data.jobs || [];
+            const { jobs: fetchedJobs, total } = response.data.data || {};
+            setTotalJobs(total || 0);
 
             setAllJobs(fetchedJobs); // 🟡 Save full list
             sortJobs(fetchedJobs, sortBy); // 🟢 Immediately sort with current criteria
@@ -317,14 +319,16 @@ const JobsPage = () => {
                                 </SelectTrigger>
                                 <SelectContent className="select-content bg-white text-black">
                                     <SelectItem value="postedDate">📅 Posted Date</SelectItem>
+                                    <SelectItem value="relevanceScore">🧠 Relevance Score</SelectItem> {/* ✅ Added */}
                                     <SelectItem value="clientRating">⭐ Client Rating</SelectItem>
                                     <SelectItem value="clientSpend">💰 Client Spend</SelectItem>
                                     <SelectItem value="avgHourlyRate">⚖️ Avg Hourly Rate</SelectItem>
-                                    <SelectItem value="minBudget">💵 Min Budget</SelectItem>
-                                    <SelectItem value="maxBudget">💵 Max Budget</SelectItem>
+                                    <SelectItem value="minRange">💵 Min Budget</SelectItem>
+                                    <SelectItem value="maxRange">💵 Max Budget</SelectItem>
                                     <SelectItem value="clientCountry">🌍 Client Country</SelectItem>
                                     <SelectItem value="pricingModel">💼 Job Type</SelectItem>
                                 </SelectContent>
+
 
                             </Select>
                         </div>
@@ -353,6 +357,10 @@ const JobsPage = () => {
                     </div>
                 </div>
             )}
+
+            <div className="mb-2 text-sm text-muted-foreground">
+                Showing <strong>{totalJobs}</strong> jobs
+            </div>
 
             <div className="space-y-4">
                 {loading ? (

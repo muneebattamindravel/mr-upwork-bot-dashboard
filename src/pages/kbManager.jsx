@@ -98,6 +98,7 @@ const KBManager = () => {
   };
 
   const handleSaveWeights = async () => {
+    setSavingFile('weights.json');
     try {
       const content = JSON.stringify(weightsJson, null, 2);
       await saveFile(selectedProfile, 'weights.json', content);
@@ -105,8 +106,11 @@ const KBManager = () => {
     } catch (err) {
       console.error(err);
       toast.error('Failed to save weights.json');
+    } finally {
+      setSavingFile(null); // 🔁 THIS is what stops the loader
     }
   };
+
 
   const handleCreateProfile = async () => {
     if (!newProfileName) return toast.error('Enter a profile name');
@@ -212,7 +216,7 @@ const KBManager = () => {
                   <Trash2 className="w-4 h-4" /> Delete
                 </button>
               </AlertDialogTrigger>
-              <AlertDialogContent>
+              <AlertDialogContent className="bg-white text-black rounded-md shadow-xl">
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete "{selectedProfile}"?</AlertDialogTitle>
                   <AlertDialogDescription>
@@ -286,6 +290,7 @@ const KBManager = () => {
           <LoadingButton
             onClick={handleSaveWeights}
             loading={savingFile === 'weights.json'}
+            className="mt-2"
           >
             Save Weights
           </LoadingButton>

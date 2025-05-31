@@ -43,9 +43,15 @@ const JobCard = ({ job }) => {
         <div className="bg-white shadow-md border rounded-lg p-4 space-y-3">
             {/* Header */}
             <div className="flex justify-between items-start flex-wrap">
-                <a href={url} target="_blank" rel="noopener noreferrer" className="text-lg font-semibold text-blue-700 hover:underline">
+                <a
+                    href={url?.split('?')[0]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-lg font-semibold text-blue-700 hover:underline"
+                >
                     {title}
                 </a>
+
                 <span className={`text-xs text-white px-2 py-1 rounded ${getRelevanceColor(relevanceScore)}`}>
                     Relevance: {relevanceScore}%
                 </span>

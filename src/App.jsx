@@ -7,6 +7,7 @@ import PrivateRoute from './components/privateRoute';
 import Layout from './components/Layout';
 import { Toaster } from 'sonner';
 import JobsPage from './pages/jobsPage';
+import BotMonitor from './pages/botMonitor';
 
 const App = () => {
   return (
@@ -33,6 +34,17 @@ const App = () => {
               <PrivateRoute>
                 <Layout>
                   <JobsPage />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/bots"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <BotMonitor />
                 </Layout>
               </PrivateRoute>
             }
