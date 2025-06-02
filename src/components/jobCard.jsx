@@ -99,8 +99,30 @@ const JobCard = ({ job }) => {
                     <div className="text-gray-600">Top: {topKeywords.join(', ')}</div>
                 )}
 
+                {/* Total Match Breakdown */}
+                {Object.keys(matchedKeywordBreakdown).length > 0 && (
+                    <div className="text-gray-600">
+                        Total Hits — 🔠 Title: <strong>{Object.values(matchedKeywordBreakdown).reduce((sum, k) => sum + k.titleMatches, 0)}</strong>,
+                        📄 Desc: <strong>{Object.values(matchedKeywordBreakdown).reduce((sum, k) => sum + k.descMatches, 0)}</strong>,
+                        🗂️ Cat: <strong>{Object.values(matchedKeywordBreakdown).reduce((sum, k) => sum + k.catMatches, 0)}</strong>
+                    </div>
+                )}
+
                 {showRelevanceDetails && (
+
+
                     <div className="bg-gray-50 border rounded p-2 mt-1 space-y-2">
+
+                        {/* Formula Summary */}
+                        <div className="pt-2 border-t text-xs text-gray-800">
+                            <div className="font-semibold mb-1">🧮 Relevance Formula:</div>
+                            <div className="ml-2">
+                                <strong>Keyword Score:</strong> {keywordScore}<br />
+                                <strong>Field Score:</strong> {fieldScore}<br />
+                                <strong>Final Score:</strong> ({relevance.keywordWeightPercent}% × {keywordScore} + {relevance.fieldWeightPercent}% × {fieldScore}) ÷ 100
+                            </div>
+                        </div>
+
                         {/* Keyword Match Breakdown */}
                         <div>
                             <div className="font-semibold text-xs text-gray-800">Keyword Matches:</div>
@@ -123,6 +145,8 @@ const JobCard = ({ job }) => {
                                     </div>
                                 ))}
                         </div>
+
+
                     </div>
                 )}
             </div>

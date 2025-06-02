@@ -8,3 +8,6 @@ import axios from './axios';
 export const getFilteredJobs = (filters) =>
   axios.get('/jobs', { params: filters });
 
+export const reprocessJobs = async () => {
+  return await axios.post('/jobs/reprocess');
+};

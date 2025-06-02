@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import LoadingButton from '@/components/ui/loading-button';
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const RelevanceSettings = () => {
@@ -19,7 +20,6 @@ const RelevanceSettings = () => {
     try {
       const res = await getKBList();
       setProfileList(res.data?.data?.profiles || []);
-
       if (res.data.data.profiles.length) {
         setProfile(res.data.data.profiles[0]);
       }
@@ -31,7 +31,6 @@ const RelevanceSettings = () => {
   const fetchSettings = async (profileName) => {
     try {
       const res = await loadFile(profileName, 'relevanceSettings.json');
-      console.log(res);
       const parsed = JSON.parse(res.data.data.content);
       setSettings(parsed);
     } catch (err) {
@@ -60,6 +59,10 @@ const RelevanceSettings = () => {
 
   const handleSwitch = (key) => (val) => {
     setSettings({ ...settings, [key]: val });
+  };
+
+  const handleSettingChange = (key, value) => {
+    setSettings({ ...settings, [key]: value });
   };
 
   const handleSave = async () => {
@@ -120,7 +123,7 @@ const RelevanceSettings = () => {
             type="number"
             className="input-field w-24"
             value={settings.minKeywordHits}
-            onChange={(e) => setSettings({ ...settings, minKeywordHits: Number(e.target.value) })}
+            onChange={(e) => handleSettingChange('minKeywordHits', Number(e.target.value))}
           />
         </div>
 

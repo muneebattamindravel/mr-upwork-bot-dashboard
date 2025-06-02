@@ -9,6 +9,8 @@ import JobCard from '@/components/JobCard';
 import { getFilteredJobs } from '@/apis/jobs';
 import { subDays, format } from 'date-fns';
 import { RotateCcw } from 'lucide-react';
+import { reprocessJobs } from '../apis/jobs';
+import { Loader2 } from 'lucide-react';
 
 const defaultFilters = {
     keyword: '',
@@ -37,7 +39,8 @@ const JobsPage = () => {
     const [sortBy, setSortBy] = useState('postedDate');
     const [sortOrder, setSortOrder] = useState('desc');
     const [allJobs, setAllJobs] = useState([]);
-    const [totalJobs, setTotalJobs] = useState(0); // ✅ New state
+    const [totalJobs, setTotalJobs] = useState(0);
+    const [reprocessing, setReprocessing] = useState(false);
 
     const applyDateRange = (range) => {
         const now = new Date();
@@ -66,6 +69,21 @@ const JobsPage = () => {
         setFilters(newFilters);
         fetchJobs(newFilters);
     };
+
+    const handleReprocess = async () => {
+        try {
+            setReprocessing(true);
+            const res = await reprocessJobs();
+            toast.success(res.data.message || 'Jobs reprocessed');
+            await fetchJobs(); // refresh job list after re-scoring
+        } catch (err) {
+            toast.error('Failed to reprocess jobs');
+            console.error('[Reprocess Error]', err);
+        } finally {
+            setReprocessing(false);
+        }
+    };
+
 
     const fetchJobs = async (appliedFilters = filters) => {
         try {
@@ -354,6 +372,23 @@ const JobsPage = () => {
                     </div>
                 </div>
             )}
+
+            <div>
+                <button
+                    onClick={handleReprocess}
+                    disabled={reprocessing}
+                    className={`btn-outline text-blue-600 ${reprocessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                    {reprocessing ? (
+                        <span className="flex items-center gap-1">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Reprocessing...
+                        </span>
+                    ) : (
+                        '🔄 Reprocess Relevance'
+                    )}
+                </button>
+            </div>
 
             <div className="flex items-center gap-3 mb-4 text-sm text-muted-foreground">
                 <div>
