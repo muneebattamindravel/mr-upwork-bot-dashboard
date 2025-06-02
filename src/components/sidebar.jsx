@@ -1,4 +1,3 @@
-// src/components/Sidebar.jsx
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
@@ -6,6 +5,8 @@ import {
   BarChart,
   Briefcase,
   Settings,
+  Monitor,
+  Sliders,
   Menu,
   X,
 } from 'lucide-react';
@@ -15,7 +16,6 @@ const Sidebar = () => {
 
   const navItemClass =
     'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors';
-
   const activeClass = 'bg-white bg-opacity-20 text-white font-semibold';
 
   const navLinks = (
@@ -30,6 +30,18 @@ const Sidebar = () => {
         <Briefcase className="w-5 h-5" />
         Jobs
       </NavLink>
+
+      <NavLink
+        to="/relevanceSettings"
+        className={({ isActive }) =>
+          `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
+        }
+        onClick={() => setIsOpen(false)}
+      >
+        <Sliders className="w-5 h-5" />
+        Relevance Settings
+      </NavLink>
+
       <NavLink
         to="/kb"
         className={({ isActive }) =>
@@ -40,6 +52,7 @@ const Sidebar = () => {
         <BookOpen className="w-5 h-5" />
         Knowledge Base
       </NavLink>
+
       <NavLink
         to="/bots"
         className={({ isActive }) =>
@@ -47,9 +60,10 @@ const Sidebar = () => {
         }
         onClick={() => setIsOpen(false)}
       >
-        <BookOpen className="w-5 h-5" />
+        <Monitor className="w-5 h-5" />
         Bot Monitor
       </NavLink>
+
       <NavLink
         to="/analytics"
         className={({ isActive }) =>
@@ -60,6 +74,7 @@ const Sidebar = () => {
         <BarChart className="w-5 h-5" />
         Analytics
       </NavLink>
+
       <NavLink
         to="/settings"
         className={({ isActive }) =>

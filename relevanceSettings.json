@@ -1,0 +1,11 @@
+{
+  "keywordWeightPercent": 50,
+  "fieldWeightPercent": 50,
+  "exactMatchOnly": true,
+  "minKeywordHits": 0,
+  "matchAreas": ["title", "description", "mainCategory"],
+  "caseSensitive": false,
+  "capScoreAt100": true,
+  "useSubstringMatch": false,
+  "useExactStringMatch": true
+}

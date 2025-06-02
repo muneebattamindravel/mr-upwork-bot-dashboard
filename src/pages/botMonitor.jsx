@@ -1,85 +1,96 @@
+'use client';
+
 import React, { useEffect, useState } from 'react';
-import { getBots } from '@/apis/bots';
+import { getBots, getBotsSummary } from '@/apis/bots';
 import { Card } from '@/components/ui/card';
+import BotSummaryCard from '@/components/botSummaryCard';
+import { cn } from '@/lib/utils';
 
 const BotMonitor = () => {
-//   const [bots, setBots] = useState([]);
-
   const [bots, setBots] = useState([]);
-
-  const fetchBots = async () => {
-    try {
-      const botsData = await getBots();
-      console.log('[Fetched Bots]', botsData);
-      setBots(botsData);
-    } catch (err) {
-      console.error('[BotMonitor] Failed to load bot statuses', err);
-    }
-  };
+  const [summary, setSummary] = useState({ total: 0, healthy: 0, stuck: 0, offline: 0 });
 
   useEffect(() => {
-    fetchBots();
-    const interval = setInterval(fetchBots, 15000);
+    const refresh = async () => {
+      try {
+        const botsData = await getBots();
+        setBots(botsData);
+
+        const summaryCount = {
+          total: botsData.length,
+          healthy: 0,
+          stuck: 0,
+          offline: 0
+        };
+
+        botsData.forEach(bot => {
+          if (bot.healthStatus === 'healthy') summaryCount.healthy++;
+          else if (bot.healthStatus === 'stuck') summaryCount.stuck++;
+          else if (bot.healthStatus === 'offline') summaryCount.offline++;
+        });
+
+        setSummary(summaryCount);
+      } catch (err) {
+        console.error('[BotMonitor] Failed to load bots or summary', err);
+      }
+    };
+
+    refresh();
+    const interval = setInterval(refresh, 5000);
     return () => clearInterval(interval);
   }, []);
 
   return (
     <div className="p-4 space-y-4">
+      <BotSummaryCard summary={summary} />
+
       <h1 className="text-2xl font-bold mb-4">🧠 Bot Monitor</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-
-        {bots.map((bot) => {
-          const lastSeen = bot.lastSeen ? new Date(bot.lastSeen) : null;
-          const ageSeconds = lastSeen ? Math.floor((Date.now() - lastSeen) / 1000) : null;
-          const isOffline = ageSeconds === null || ageSeconds > 60;
-
-          return (
-            <Card key={bot.botId} className="p-4 shadow-md">
+        {bots.map((bot) => (
+          <Card key={bot.botId} className="p-4 shadow-md">
+            <div className="flex justify-between items-center mb-2">
               <div className="font-bold text-lg">{bot.botId}</div>
 
-              <div className="text-sm mt-1">
-                Status:{' '}
-                <span className={`font-medium ${isOffline ? 'text-red-600' : ''}`}>
-                  {isOffline ? 'offline' : bot.status}
-                </span>
-              </div>
-
-              {bot.message && !isOffline && (
-                <div className="text-sm">
-                  Message:{' '}
-                  <span className="text-gray-700">{bot.message}</span>
-                </div>
-              )}
-
-              {bot.jobUrl && !isOffline && (
-                <div className="text-sm truncate">
-                  Job:{' '}
-                  <a
-                    href={bot.jobUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-blue-600 underline"
-                  >
-                    {bot.jobUrl}
-                  </a>
-                </div>
-              )}
-
-              {lastSeen && (
-                <div className="text-sm">Last Seen: {formatTimeAgo(bot.lastSeen)}</div>
-              )}
-
-              <div
-                className={`font-semibold mt-2 ${
-                  isOffline ? 'text-red-600' : 'text-green-600'
-                }`}
+              <span
+                className={cn(
+                  'px-2 py-1 rounded-full text-xs font-medium',
+                  bot.healthStatus === 'offline'
+                    ? 'bg-red-100 text-red-700'
+                    : bot.healthStatus === 'stuck'
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : 'bg-green-100 text-green-700'
+                )}
               >
-                {isOffline ? '🔴 Offline' : '✅ Healthy'}
+                {bot.healthStatus === 'offline'
+                  ? '❌ Offline'
+                  : bot.healthStatus === 'stuck'
+                    ? '⚠️ Stuck'
+                    : '✅ Healthy'}
+              </span>
+            </div>
+
+            <div className="text-sm">
+              Status: <span className="text-gray-800 font-medium">{bot.status}</span>
+            </div>
+
+            {bot.message && (
+              <div className="text-sm">
+                Message: <span className="text-gray-700">{bot.message}</span>
               </div>
-            </Card>
-          );
-        })}
+            )}
+
+            {bot.jobUrl && (
+              <div className="text-sm truncate">
+                Job: <a href={bot.jobUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline">{bot.jobUrl}</a>
+              </div>
+            )}
+
+            <div className="text-sm text-gray-500 mt-1">
+              Last Seen: {formatTimeAgo(bot.lastSeen)}
+            </div>
+          </Card>
+        ))}
       </div>
     </div>
   );

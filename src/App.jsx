@@ -8,6 +8,7 @@ import Layout from './components/Layout';
 import { Toaster } from 'sonner';
 import JobsPage from './pages/jobsPage';
 import BotMonitor from './pages/botMonitor';
+import RelevanceSettings from './pages/relevanceSettings';
 
 const App = () => {
   return (
@@ -45,6 +46,17 @@ const App = () => {
               <PrivateRoute>
                 <Layout>
                   <BotMonitor />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/relevanceSettings"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <RelevanceSettings />
                 </Layout>
               </PrivateRoute>
             }

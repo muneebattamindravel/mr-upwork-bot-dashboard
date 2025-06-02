@@ -13,7 +13,7 @@ body {
 
 /* --- Reusable Button Styles --- */
 .btn-primary {
-  @apply h-10 px-4 bg-blue-600 text-white hover:bg-blue-700 font-medium rounded-md transition-colors;
+  @apply h-10 px-4 bg-blue-600 text-white hover:bg-blue-700 font-medium rounded-md transition-colors; 
 }
 
 .btn-secondary {
@@ -108,4 +108,29 @@ input[type="checkbox"].switch:checked::before {
 
 .select-trigger > svg {
   display: none !important;
+}
+
+/* --- Relevance Settings Page Styles --- */
+.relevance-settings-wrapper {
+  @apply w-full max-w-4xl space-y-6;
+}
+
+.relevance-settings-card {
+  @apply bg-white border rounded-lg shadow-sm p-6 space-y-4;
+}
+
+.relevance-section-label {
+  @apply text-sm font-medium text-gray-700 mb-1;
+}
+
+.relevance-switch-row {
+  @apply flex justify-between items-center py-2;
+}
+
+.relevance-slider-text {
+  @apply text-xs text-gray-500 mt-1;
+}
+
+.relevance-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-4;
 }

@@ -1,13 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { BadgeCheck, PhoneCall, MapPin, Star } from 'lucide-react';
+import { BadgeCheck, PhoneCall, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 
 const JobCard = ({ job }) => {
     const {
         title,
         description,
         url,
-        relevanceScore,
         postedDate,
         mainCategory,
         experienceLevel,
@@ -27,10 +26,23 @@ const JobCard = ({ job }) => {
         clientPhoneVerified,
         clientAverageHourlyRate,
         clientRating,
-        clientReviews
+        clientReviews,
+        relevance = {}
     } = job;
 
-    // Relevance color
+    const {
+        relevanceScore = 0,
+        profile = '',
+        keywordScore = 0,
+        fieldScore = 0,
+        uniqueKeywordsMatched = 0,
+        totalKeywordHits = 0,
+        matchedKeywordBreakdown = {},
+        fieldScoreBreakdown = {}
+    } = relevance;
+
+    const [showRelevanceDetails, setShowRelevanceDetails] = useState(false);
+
     const getRelevanceColor = (score) => {
         if (score >= 85) return 'bg-green-600';
         if (score >= 60) return 'bg-yellow-500';
@@ -38,6 +50,13 @@ const JobCard = ({ job }) => {
     };
 
     const postedAgo = formatDistanceToNow(new Date(postedDate), { addSuffix: true });
+
+    const topKeywords = Object.entries(matchedKeywordBreakdown)
+        .sort(([, a], [, b]) => b.weighted - a.weighted)
+        .slice(0, 3)
+        .map(([kw, val]) => `${kw} (${val.totalMatches})`);
+
+    const toggleDetails = () => setShowRelevanceDetails(prev => !prev);
 
     return (
         <div className="bg-white shadow-md border rounded-lg p-4 space-y-3">
@@ -52,13 +71,64 @@ const JobCard = ({ job }) => {
                     {title}
                 </a>
 
-                <span className={`text-xs text-white px-2 py-1 rounded ${getRelevanceColor(relevanceScore)}`}>
+                <span
+                    className={`text-xs text-white px-2 py-1 rounded ${getRelevanceColor(relevanceScore)}`}
+                    title={`Keywords: ${keywordScore}, Fields: ${fieldScore}`}
+                >
                     Relevance: {relevanceScore}%
                 </span>
             </div>
 
-            {/* Meta Row */}
-            <div className="flex flex-wrap text-sm text-gray-600 gap-x-4 gap-y-1">
+            {/* Relevance Summary */}
+            <div className="text-xs text-gray-700 space-y-1">
+                <div>
+                    Profile Match: <strong>{profile}</strong>
+                </div>
+
+                <div className="flex justify-between items-center">
+                    🔑 Keywords: {uniqueKeywordsMatched} matched ({totalKeywordHits} hits)
+                    <button
+                        onClick={toggleDetails}
+                        className="text-blue-500 hover:underline flex items-center text-xs"
+                    >
+                        Insights {showRelevanceDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </button>
+                </div>
+
+                {topKeywords.length > 0 && (
+                    <div className="text-gray-600">Top: {topKeywords.join(', ')}</div>
+                )}
+
+                {showRelevanceDetails && (
+                    <div className="bg-gray-50 border rounded p-2 mt-1 space-y-2">
+                        {/* Keyword Match Breakdown */}
+                        <div>
+                            <div className="font-semibold text-xs text-gray-800">Keyword Matches:</div>
+                            {Object.entries(matchedKeywordBreakdown).map(([kw, val]) => (
+                                <div key={kw} className="text-xs text-gray-600 ml-2">
+                                    🔹 <strong>{kw}</strong>: {val.totalMatches} hits
+                                    (Title: {val.titleMatches}, Desc: {val.descMatches}, Cat: {val.catMatches})
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Field Score Breakdown */}
+                        <div>
+                            <div className="font-semibold text-xs text-gray-800">Field Score Breakdown:</div>
+                            {Object.entries(fieldScoreBreakdown)
+                                .filter(([, score]) => score > 0)
+                                .map(([field, score]) => (
+                                    <div key={field} className="text-xs text-gray-600 ml-2">
+                                        ✅ {field}: +{score}
+                                    </div>
+                                ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Meta Info */}
+            <div className="flex flex-wrap text-sm text-gray-600 gap-x-4 gap-y-1 pt-2 border-t mt-2">
                 <div>📂 {mainCategory}</div>
                 <div>⚙️ {experienceLevel}</div>
                 <div>📈 {projectType}</div>
@@ -74,12 +144,7 @@ const JobCard = ({ job }) => {
                         <div>💵 Budget: ${minRange} - ${maxRange} /hr</div>
                     )
                 )}
-
-
             </div>
-
-            {/* Description */}
-            <p className="text-sm text-gray-800 line-clamp-3">{description}</p>
 
             {/* Client Info */}
             <div className="border-t pt-2 text-sm grid grid-cols-1 md:grid-cols-2 gap-2 text-gray-700">

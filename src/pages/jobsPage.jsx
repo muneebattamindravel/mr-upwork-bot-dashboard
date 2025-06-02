@@ -8,6 +8,7 @@ import LoadingButton from '@/components/ui/loading-button';
 import JobCard from '@/components/JobCard';
 import { getFilteredJobs } from '@/apis/jobs';
 import { subDays, format } from 'date-fns';
+import { RotateCcw } from 'lucide-react';
 
 const defaultFilters = {
     keyword: '',
@@ -97,29 +98,25 @@ const JobsPage = () => {
 
     useEffect(() => {
         if (allJobs.length > 0) {
+            const getSortValue = (job, key) => {
+                if (key === 'relevanceScore') return job.relevance?.relevanceScore || 0;
+                if (key === 'avgHourlyRate') return job.clientAverageHourlyRate || 0;
+                return job[key] || 0;
+            };
+
             const sorted = [...allJobs].sort((a, b) => {
-                const fieldA = a[sortBy];
-                const fieldB = b[sortBy];
+                const valA = getSortValue(a, sortBy);
+                const valB = getSortValue(b, sortBy);
 
-                if (fieldA === undefined || fieldB === undefined) return 0;
-
-                if (typeof fieldA === 'number') {
-                    return sortOrder === 'asc' ? fieldA - fieldB : fieldB - fieldA;
-                } else if (typeof fieldA === 'string') {
-                    return sortOrder === 'asc'
-                        ? fieldA.localeCompare(fieldB)
-                        : fieldB.localeCompare(fieldA);
-                } else {
-                    return 0;
+                if (typeof valA === 'string') {
+                    return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
                 }
+                return sortOrder === 'asc' ? valA - valB : valB - valA;
             });
 
             setJobs(sorted);
         }
     }, [sortBy, sortOrder, allJobs]);
-
-
-
 
     const sortJobs = (jobList, sortKey) => {
         const sorted = [...jobList].sort((a, b) => {
@@ -319,7 +316,7 @@ const JobsPage = () => {
                                 </SelectTrigger>
                                 <SelectContent className="select-content bg-white text-black">
                                     <SelectItem value="postedDate">📅 Posted Date</SelectItem>
-                                    <SelectItem value="relevanceScore">🧠 Relevance Score</SelectItem> {/* ✅ Added */}
+                                    <SelectItem value="relevanceScore">🧠 Relevance Score</SelectItem>
                                     <SelectItem value="clientRating">⭐ Client Rating</SelectItem>
                                     <SelectItem value="clientSpend">💰 Client Spend</SelectItem>
                                     <SelectItem value="avgHourlyRate">⚖️ Avg Hourly Rate</SelectItem>
@@ -358,9 +355,21 @@ const JobsPage = () => {
                 </div>
             )}
 
-            <div className="mb-2 text-sm text-muted-foreground">
-                Showing <strong>{totalJobs}</strong> jobs
+            <div className="flex items-center gap-3 mb-4 text-sm text-muted-foreground">
+                <div>
+                    Showing <strong>{totalJobs}</strong> jobs
+                </div>
+
+                <button
+                    onClick={() => fetchJobs()}
+                    disabled={loading}
+                    className={`rounded-full p-2 transition hover:bg-gray-100 border ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title="Refresh Job Feed"
+                >
+                    <RotateCcw className="w-4 h-4 text-purple-700" />
+                </button>
             </div>
+
 
             <div className="space-y-4">
                 {loading ? (
@@ -371,6 +380,7 @@ const JobsPage = () => {
                     jobs.map((job, idx) => <JobCard key={idx} job={job} />)
                 )}
             </div>
+
 
         </div>
     );
