@@ -39,7 +39,8 @@ const JobsPage = () => {
     const [sortBy, setSortBy] = useState('postedDate');
     const [sortOrder, setSortOrder] = useState('desc');
     const [allJobs, setAllJobs] = useState([]);
-    const [totalJobs, setTotalJobs] = useState(0);
+    // const [totalJobs, setTotalJobs] = useState(0);
+    const [totalAllJobs, setTotalAllJobs] = useState(0);
     const [reprocessing, setReprocessing] = useState(false);
 
     const applyDateRange = (range) => {
@@ -96,9 +97,8 @@ const JobsPage = () => {
             });
 
             const response = await getFilteredJobs(query);
-            const { jobs: fetchedJobs, total } = response.data.data || {};
-            setTotalJobs(total || 0);
-
+            const { jobs: fetchedJobs, totalAll } = response.data.data || {};
+            setTotalAllJobs(totalAll || 0);
             setAllJobs(fetchedJobs); // 🟡 Save full list
             sortJobs(fetchedJobs, sortBy); // 🟢 Immediately sort with current criteria
         } catch (err) {
@@ -108,7 +108,6 @@ const JobsPage = () => {
             setLoading(false);
         }
     };
-
 
     useEffect(() => {
         applyDateRange(dateRange);
@@ -392,7 +391,7 @@ const JobsPage = () => {
 
             <div className="flex items-center gap-3 mb-4 text-sm text-muted-foreground">
                 <div>
-                    Showing <strong>{totalJobs}</strong> jobs
+                    Showing <strong>{allJobs.length}</strong> of <strong>{totalAllJobs}</strong> total jobs
                 </div>
 
                 <button

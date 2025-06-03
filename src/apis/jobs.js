@@ -11,3 +11,8 @@ export const getFilteredJobs = (filters) =>
 export const reprocessJobs = async () => {
   return await axios.post('/jobs/reprocess');
 };
+
+export const getTotalJobs = async () => {
+  const response = await axios.get('/api/jobs/total');
+  return response.data.total;
+};
