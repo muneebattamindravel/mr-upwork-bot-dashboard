@@ -44,8 +44,8 @@ const JobCard = ({ job }) => {
     const [showRelevanceDetails, setShowRelevanceDetails] = useState(false);
 
     const getRelevanceColor = (score) => {
-        if (score >= 85) return 'bg-green-600';
-        if (score >= 60) return 'bg-yellow-500';
+        if (score >= 80) return 'bg-green-600';
+        if (score >= 50) return 'bg-yellow-500';
         return 'bg-red-500';
     };
 
@@ -57,6 +57,12 @@ const JobCard = ({ job }) => {
         .map(([kw, val]) => `${kw} (${val.totalMatches})`);
 
     const toggleDetails = () => setShowRelevanceDetails(prev => !prev);
+
+    const formatAbbreviated = (num) => {
+        if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(1)}M`;
+        if (num >= 1_000) return `$${(num / 1_000).toFixed(0)}K`;
+        return `$${num}`;
+    };
 
     return (
         <div className="bg-white shadow-md border rounded-lg p-4 space-y-3">
@@ -72,7 +78,7 @@ const JobCard = ({ job }) => {
                 </a>
 
                 <span
-                    className={`text-xs text-white px-2 py-1 rounded ${getRelevanceColor(relevanceScore)}`}
+                    className={`text-sm font-semibold text-white px-2.5 py-1 rounded shadow ${getRelevanceColor(relevanceScore)}`}
                     title={`Keywords: ${keywordScore}, Fields: ${fieldScore}`}
                 >
                     Relevance: {relevanceScore}%
@@ -114,14 +120,14 @@ const JobCard = ({ job }) => {
                     <div className="bg-gray-50 border rounded p-2 mt-1 space-y-2">
 
                         {/* Formula Summary */}
-                        <div className="pt-2 border-t text-xs text-gray-800">
-                            <div className="font-semibold mb-1">🧮 Relevance Formula:</div>
-                            <div className="ml-2">
-                                <strong>Keyword Score:</strong> {keywordScore}<br />
-                                <strong>Field Score:</strong> {fieldScore}<br />
-                                <strong>Final Score:</strong> ({relevance.keywordWeightPercent}% × {keywordScore} + {relevance.fieldWeightPercent}% × {fieldScore}) ÷ 100
-                            </div>
+                        <div className="ml-2">
+                            <strong>Keyword Score:</strong> {keywordScore}<br />
+                            <strong>Field Score:</strong> {fieldScore}<br />
+                            <strong>Final Score:</strong> ({relevance.keywordWeightPercent}% × {keywordScore} + {relevance.fieldWeightPercent}% × {fieldScore}) ÷ 100 = {
+                                ((relevance.keywordWeightPercent * keywordScore + relevance.fieldWeightPercent * fieldScore) / 100).toFixed(1)
+                            }
                         </div>
+
 
                         {/* Keyword Match Breakdown */}
                         <div>
@@ -130,9 +136,11 @@ const JobCard = ({ job }) => {
                                 <div key={kw} className="text-xs text-gray-600 ml-2">
                                     🔹 <strong>{kw}</strong>: {val.totalMatches} hits
                                     (Title: {val.titleMatches}, Desc: {val.descMatches}, Cat: {val.catMatches})
+                                    <span className="text-green-600 font-semibold ml-1">[+{val.weighted}]</span>
                                 </div>
                             ))}
                         </div>
+
 
                         {/* Field Score Breakdown */}
                         <div>
@@ -184,7 +192,7 @@ const JobCard = ({ job }) => {
                     <PhoneCall className="w-4 h-4" />
                     Phone: {clientPhoneVerified ? '✔️ Verified' : '❌ Not Verified'}
                 </div>
-                <div>💰 Spend: {clientSpend}</div>
+                <div>💰 Spend: {formatAbbreviated(clientSpend)}</div>
                 <div>📊 Jobs Posted: {clientJobsPosted}</div>
                 <div>🧑‍💼 Hires: {clientHires} ({clientHireRate}%)</div>
                 <div>📅 Member Since: {clientMemberSince}</div>
