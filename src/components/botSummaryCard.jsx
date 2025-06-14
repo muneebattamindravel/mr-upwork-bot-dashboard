@@ -1,20 +1,29 @@
+'use client';
+
 import React from 'react';
+import { Card } from '@/components/ui/card';
 
 const BotSummaryCard = ({ summary }) => {
+  const { total, healthy, stuck, offline } = summary;
+
+  const cardClass = 'flex flex-col items-center justify-center p-4 rounded-xl shadow-md';
+
   return (
-    <div className="grid grid-cols-3 gap-4 mb-4">
-      <div className="p-4 rounded-2xl shadow-md bg-white dark:bg-gray-900 text-center">
-        <h3 className="text-xl font-semibold">Total Bots</h3>
-        <p className="text-2xl mt-2">{summary.total}</p>
-      </div>
-      <div className="p-4 rounded-2xl shadow-md bg-green-100 dark:bg-green-900 text-center">
-        <h3 className="text-xl font-semibold">Online</h3>
-        <p className="text-2xl mt-2 text-green-800 dark:text-green-200">{summary.online}</p>
-      </div>
-      <div className="p-4 rounded-2xl shadow-md bg-red-100 dark:bg-red-900 text-center">
-        <h3 className="text-xl font-semibold">Offline</h3>
-        <p className="text-2xl mt-2 text-red-800 dark:text-red-200">{summary.offline}</p>
-      </div>
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <Card className={`${cardClass} bg-gray-100`}>
+        <div className="text-2xl font-bold text-gray-800">{total}</div>
+        <div className="text-sm text-gray-600">Total Bots</div>
+      </Card>
+
+      <Card className={`${cardClass} bg-green-100`}>
+        <div className="text-2xl font-bold text-green-800">{healthy}</div>
+        <div className="text-sm text-green-700">Online (Healthy)</div>
+      </Card>
+
+      <Card className={`${cardClass} bg-red-100`}>
+        <div className="text-2xl font-bold text-red-800">{offline}</div>
+        <div className="text-sm text-red-700">Offline</div>
+      </Card>
     </div>
   );
 };

@@ -1,44 +1,67 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { getBots, getBotsSummary } from '@/apis/bots';
+import { getBots, startBotRemote, stopBotRemote } from '@/apis/bots';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import BotSummaryCard from '@/components/botSummaryCard';
+import { Play, Pause, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const BotMonitor = () => {
   const [bots, setBots] = useState([]);
   const [summary, setSummary] = useState({ total: 0, healthy: 0, stuck: 0, offline: 0 });
+  const [loadingBotId, setLoadingBotId] = useState(null);
+
+  const fetchBotList = async () => {
+    try {
+      const botsData = await getBots();
+      setBots(botsData);
+
+      const summaryCount = {
+        total: botsData.length,
+        healthy: 0,
+        stuck: 0,
+        offline: 0,
+      };
+
+      botsData.forEach((bot) => {
+        if (bot.healthStatus === 'healthy') summaryCount.healthy++;
+        else if (bot.healthStatus === 'stuck') summaryCount.stuck++;
+        else if (bot.healthStatus === 'offline') summaryCount.offline++;
+      });
+
+      setSummary(summaryCount);
+    } catch (err) {
+      console.error('[BotMonitor] Failed to load bots or summary', err);
+    }
+  };
 
   useEffect(() => {
-    const refresh = async () => {
-      try {
-        const botsData = await getBots();
-        setBots(botsData);
-
-        const summaryCount = {
-          total: botsData.length,
-          healthy: 0,
-          stuck: 0,
-          offline: 0
-        };
-
-        botsData.forEach(bot => {
-          if (bot.healthStatus === 'healthy') summaryCount.healthy++;
-          else if (bot.healthStatus === 'stuck') summaryCount.stuck++;
-          else if (bot.healthStatus === 'offline') summaryCount.offline++;
-        });
-
-        setSummary(summaryCount);
-      } catch (err) {
-        console.error('[BotMonitor] Failed to load bots or summary', err);
-      }
-    };
-
-    refresh();
-    const interval = setInterval(refresh, 5000);
+    fetchBotList();
+    const interval = setInterval(fetchBotList, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleToggleBot = async (bot) => {
+    setLoadingBotId(bot.botId);
+    try {
+      if (bot.status === 'running') {
+        await stopBotRemote(bot.agentUrl);
+        toast.success(`Bot "${bot.botId}" stopped`);
+      } else {
+        await startBotRemote(bot.agentUrl);
+        toast.success(`Bot "${bot.botId}" started`);
+      }
+
+      await fetchBotList(); // 🔄 Refresh after action
+    } catch (err) {
+      toast.error(`Failed to ${bot.status === 'running' ? 'stop' : 'start'} bot: ${err.message}`);
+    } finally {
+      setLoadingBotId(null);
+    }
+  };
 
   return (
     <div className="p-4 space-y-4">
@@ -58,15 +81,15 @@ const BotMonitor = () => {
                   bot.healthStatus === 'offline'
                     ? 'bg-red-100 text-red-700'
                     : bot.healthStatus === 'stuck'
-                      ? 'bg-yellow-100 text-yellow-700'
-                      : 'bg-green-100 text-green-700'
+                    ? 'bg-yellow-100 text-yellow-700'
+                    : 'bg-green-100 text-green-700'
                 )}
               >
                 {bot.healthStatus === 'offline'
                   ? '❌ Offline'
                   : bot.healthStatus === 'stuck'
-                    ? '⚠️ Stuck'
-                    : '✅ Healthy'}
+                  ? '⚠️ Stuck'
+                  : '✅ Healthy'}
               </span>
             </div>
 
@@ -82,12 +105,37 @@ const BotMonitor = () => {
 
             {bot.jobUrl && (
               <div className="text-sm truncate">
-                Job: <a href={bot.jobUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline">{bot.jobUrl}</a>
+                Job:{' '}
+                <a
+                  href={bot.jobUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-600 underline"
+                >
+                  {bot.jobUrl}
+                </a>
               </div>
             )}
 
             <div className="text-sm text-gray-500 mt-1">
               Last Seen: {formatTimeAgo(bot.lastSeen)}
+            </div>
+
+            <div className="mt-2 flex gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleToggleBot(bot)}
+                disabled={loadingBotId === bot.botId}
+              >
+                {loadingBotId === bot.botId ? (
+                  <Loader2 className="animate-spin w-5 h-5" />
+                ) : bot.status === 'running' ? (
+                  <Pause className="w-5 h-5" />
+                ) : (
+                  <Play className="w-5 h-5" />
+                )}
+              </Button>
             </div>
           </Card>
         ))}
