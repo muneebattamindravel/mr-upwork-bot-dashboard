@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/login';
 import KBManager from './pages/kbManager';
 import PrivateRoute from './components/privateRoute';
-import Layout from './components/Layout';
+import Layout from './components/layout';
 import { Toaster } from 'sonner';
 import JobsPage from './pages/jobsPage';
 import BotMonitor from './pages/botMonitor';
