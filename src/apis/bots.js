@@ -21,6 +21,8 @@ export const stopBotRemote = async (agentUrl) => {
 };
 
 export const checkBotStatus = async (agentUrl) => {
-  const res = await axios.get(`${agentUrl}/status`);
+  const res = await axios.get(`${agentUrl}/status`, {
+    timeout: 5000,
+  });
   return res.data;
 };
