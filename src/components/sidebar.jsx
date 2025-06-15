@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   BookOpen,
@@ -7,13 +7,10 @@ import {
   Settings,
   Monitor,
   Sliders,
-  Menu,
   X,
 } from 'lucide-react';
 
-const Sidebar = () => {
-  const [isOpen, setIsOpen] = useState(false);
-
+const Sidebar = ({ isOpen, setIsOpen }) => {
   const navItemClass =
     'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors';
   const activeClass = 'bg-white bg-opacity-20 text-white font-semibold';
@@ -90,19 +87,8 @@ const Sidebar = () => {
 
   return (
     <>
-      {/* Mobile toggle button */}
-      <div className="md:hidden fixed top-4 left-4 z-50">
-        <button
-          onClick={() => setIsOpen(true)}
-          className="text-purple-800 hover:text-purple-600 bg-white p-2 rounded-md shadow"
-        >
-          <Menu className="w-6 h-6" />
-        </button>
-      </div>
-
       {/* Desktop Sidebar */}
       <div className="hidden md:flex flex-col fixed top-0 left-0 h-full w-64 bg-gradient-to-b from-purple-700 to-purple-900 text-white p-4 z-40">
-        {/* 🟣 Branding */}
         <div className="mb-6">
           <img
             src="/mindravel-logo.png"
@@ -122,7 +108,11 @@ const Sidebar = () => {
           />
           <div className="fixed top-0 left-0 w-64 h-full bg-gradient-to-b from-purple-700 to-purple-900 text-white p-4 z-50 shadow-lg">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-bold">Admin Panel</h2>
+              <img
+                src="/mindravel-logo.png"
+                alt="Mindravel Logo"
+                className="w-full max-w-[160px] h-auto object-contain"
+              />
               <button onClick={() => setIsOpen(false)}>
                 <X className="w-5 h-5 text-white" />
               </button>
