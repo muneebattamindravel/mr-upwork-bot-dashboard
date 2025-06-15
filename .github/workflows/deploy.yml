@@ -23,13 +23,25 @@ jobs:
     - name: Build Vite project
       run: npm run build
 
-    - name: Upload build to Lightsail
+    - name: Upload to temp folder
       uses: appleboy/scp-action@master
       with:
         host: ${{ secrets.LIGHTSAIL_HOST }}
         username: ${{ secrets.LIGHTSAIL_USER }}
         key: ${{ secrets.FRONTEND_SSH_KEY }}
         source: "dist/**"
-        target: "/home/ubuntu/dashboard-frontend"
+        target: "/home/ubuntu/dashboard-temp"
         strip_components: 1
-        overwrite: true
+
+    - name: Replace production build on server
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.LIGHTSAIL_HOST }}
+        username: ${{ secrets.LIGHTSAIL_USER }}
+        key: ${{ secrets.FRONTEND_SSH_KEY }}
+        script: |
+          sudo rm -rf /home/ubuntu/dashboard-frontend/*
+          sudo mv /home/ubuntu/dashboard-temp/* /home/ubuntu/dashboard-frontend/
+          sudo rm -rf /home/ubuntu/dashboard-temp
+          sudo chown -R www-data:www-data /home/ubuntu/dashboard-frontend
+          sudo chmod -R 755 /home/ubuntu/dashboard-frontend
