@@ -32,3 +32,4 @@ jobs:
         source: "dist/**"
         target: "/home/ubuntu/dashboard-frontend"
         strip_components: 1
+        overwrite: true
