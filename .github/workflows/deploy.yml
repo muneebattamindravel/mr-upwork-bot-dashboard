@@ -29,5 +29,6 @@ jobs:
         host: ${{ secrets.LIGHTSAIL_HOST }}
         username: ${{ secrets.LIGHTSAIL_USER }}
         key: ${{ secrets.FRONTEND_SSH_KEY }}
-        source: "dist/*"
+        source: "dist/**"
         target: "/home/ubuntu/dashboard-frontend"
+        strip_components: 1
