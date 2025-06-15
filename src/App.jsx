@@ -1,7 +1,7 @@
 // src/App.jsx
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
+import Login from './pages/login';
 import KBManager from './pages/kbManager';
 import PrivateRoute from './components/privateRoute';
 import Layout from './components/Layout';
