@@ -9,6 +9,7 @@ import { Toaster } from 'sonner';
 import JobsPage from './pages/jobsPage';
 import BotMonitor from './pages/botMonitor';
 import RelevanceSettings from './pages/relevanceSettings';
+import NotFound from './pages/notFound';
 
 const App = () => {
   return (
@@ -61,6 +62,8 @@ const App = () => {
               </PrivateRoute>
             }
           />
+
+          <Route path="*" element={<NotFound />} />
         </Routes>
 
       </BrowserRouter>

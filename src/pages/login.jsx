@@ -52,57 +52,54 @@ const Login = () => {
   };
 
   return (
-    <div
-      className="min-h-screen bg-cover bg-center flex items-center justify-center px-4"
-      style={{ backgroundImage: "url('/mindravel-banner.png')" }}
-    >
-      <div className="bg-white bg-opacity-90 backdrop-blur-md shadow-lg rounded-lg p-8 w-full max-w-md">
-        <div className="flex flex-col items-center mb-6">
-          <img
-            src="/mindravel-logo-for-light.png"
-            alt="Mindravel Logo"
-            className="h-14 mb-2"
-          />
-          <h1 className="text-xl font-semibold text-purple-800 text-center">
-            Welcome to MR Upwork Bot
-          </h1>
-          <p className="text-sm text-gray-500 text-center">
-            Please log in to continue
-          </p>
-        </div>
+    <div className="relative min-h-screen w-full bg-[url('/mindravel-banner.png')] bg-cover bg-center flex items-center justify-center">
+      {/* 🔮 Blur overlay */}
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-[8px] z-0" />
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Username</label>
-            <input
-              type="text"
-              className="input-field w-full"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter your username"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Password</label>
-            <input
-              type="password"
-              className="input-field w-full"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-            />
-          </div>
-          <LoadingButton
-            type="submit"
-            className="w-full"
-            loading={loading}
-          >
-            Login
-          </LoadingButton>
-        </form>
-      </div>
+      {/* 🔒 Login Card */}
+      <form
+        onSubmit={handleLogin}
+        className="relative z-10 bg-white bg-opacity-90 p-6 rounded-lg shadow-xl w-full max-w-md"
+      >
+        <img
+          src="/mindravel-logo-for-light.png"
+          alt="Mindravel Logo"
+          className="h-14 mx-auto mb-4"
+        />
+        <h2 className="text-xl font-semibold mb-4 text-center text-purple-800">
+          Login to Dashboard
+        </h2>
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-1">Username</label>
+          <input
+            type="text"
+            className="input-field"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Enter your username"
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-1">Password</label>
+          <input
+            type="password"
+            className="input-field"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter your password"
+          />
+        </div>
+        <LoadingButton
+          type="submit"
+          className="w-full"
+          loading={loading}
+        >
+          Login
+        </LoadingButton>
+      </form>
     </div>
   );
+
 };
 
 export default Login;
