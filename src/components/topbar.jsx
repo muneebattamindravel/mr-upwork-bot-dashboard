@@ -1,4 +1,3 @@
-// src/components/Topbar.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, User } from 'lucide-react';
@@ -15,8 +14,20 @@ const Topbar = () => {
   return (
     <header className="sticky top-0 z-20 w-full bg-white shadow-md border-b border-gray-200">
       <div className="flex items-center justify-between px-4 py-3 md:px-6">
-        <h1 className="text-lg font-semibold text-purple-800">Admin Dashboard</h1>
+        
+        {/* Branding Section */}
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col leading-tight">
+            <span className="font-semibold text-base sm:text-lg text-purple-800">
+              Mindravel Interactive
+            </span>
+            <span className="text-xs text-gray-500 sm:text-sm -mt-1">
+              Upwork Bot Dashboard
+            </span>
+          </div>
+        </div>
 
+        {/* User Menu */}
         <div className="relative">
           <button
             onClick={() => setMenuOpen((prev) => !prev)}
