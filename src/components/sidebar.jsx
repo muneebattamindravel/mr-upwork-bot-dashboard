@@ -91,7 +91,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       <div className="hidden md:flex flex-col fixed top-0 left-0 h-full w-64 bg-gradient-to-b from-purple-700 to-purple-900 text-white p-4 z-40">
         <div className="mb-6">
           <img
-            src="/mindravel-logo.png"
+            src="/mindravel-logo-for-dark.png"
             alt="Mindravel Logo"
             className="w-full max-w-[180px] h-auto object-contain mx-auto"
           />
