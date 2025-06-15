@@ -5,7 +5,7 @@ import { Select, SelectItem, SelectTrigger, SelectContent, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import LoadingButton from '@/components/ui/loading-button';
-import JobCard from '@/components/JobCard';
+import JobCard from '@/components/jobCard';
 import { getFilteredJobs } from '@/apis/jobs';
 import { subDays, format } from 'date-fns';
 import { RotateCcw } from 'lucide-react';

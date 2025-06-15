@@ -1,7 +1,7 @@
 // src/components/Layout.jsx
 import React from 'react';
-import Sidebar from './Sidebar';
-import Topbar from './Topbar';
+import Sidebar from './sidebar';
+import Topbar from './topbar';
 
 const Layout = ({ children }) => {
   return (
