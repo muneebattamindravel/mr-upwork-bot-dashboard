@@ -9,6 +9,7 @@ import { Toaster } from 'sonner';
 import JobsPage from './pages/jobsPage';
 import BotMonitor from './pages/botMonitor';
 import RelevanceSettings from './pages/relevanceSettings';
+import BotSettings from './pages/botSettings';
 import NotFound from './pages/notFound';
 
 const App = () => {
@@ -58,6 +59,17 @@ const App = () => {
               <PrivateRoute>
                 <Layout>
                   <RelevanceSettings />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/botSettings"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <BotSettings />
                 </Layout>
               </PrivateRoute>
             }

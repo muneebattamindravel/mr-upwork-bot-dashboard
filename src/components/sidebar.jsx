@@ -29,17 +29,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       </NavLink>
 
       <NavLink
-        to="/relevanceSettings"
-        className={({ isActive }) =>
-          `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
-        }
-        onClick={() => setIsOpen(false)}
-      >
-        <Sliders className="w-5 h-5" />
-        Relevance Settings
-      </NavLink>
-
-      <NavLink
         to="/kb"
         className={({ isActive }) =>
           `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
@@ -48,6 +37,17 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       >
         <BookOpen className="w-5 h-5" />
         Knowledge Base
+      </NavLink>
+
+      <NavLink
+        to="/relevanceSettings"
+        className={({ isActive }) =>
+          `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
+        }
+        onClick={() => setIsOpen(false)}
+      >
+        <Sliders className="w-5 h-5" />
+        Relevance Settings
       </NavLink>
 
       <NavLink
@@ -62,6 +62,17 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       </NavLink>
 
       <NavLink
+        to="/botSettings"
+        className={({ isActive }) =>
+          `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
+        }
+        onClick={() => setIsOpen(false)}
+      >
+        <Settings className="w-5 h-5" />
+        Bot Settings
+      </NavLink>
+
+      <NavLink
         to="/analytics"
         className={({ isActive }) =>
           `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
@@ -70,17 +81,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       >
         <BarChart className="w-5 h-5" />
         Analytics
-      </NavLink>
-
-      <NavLink
-        to="/settings"
-        className={({ isActive }) =>
-          `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
-        }
-        onClick={() => setIsOpen(false)}
-      >
-        <Settings className="w-5 h-5" />
-        Settings
       </NavLink>
     </nav>
   );
