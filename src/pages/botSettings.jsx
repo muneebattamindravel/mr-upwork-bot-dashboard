@@ -204,6 +204,18 @@ const BotSettingsPage = () => {
                 </div>
 
                 <div>
+                    <Label className="font-semibold">⏱️ Water After Feed Page Load (ms)</Label>
+                    <input
+                        type="number"
+                        className="input-field w-40"
+                        min={0}
+                        value={settings.waitAfterFeedPageLoad}
+                        onChange={handleInput('waitAfterFeedPageLoad')}
+                    />
+                    <div className="text-sm text-muted">Delay added if HTML is smaller than threshold.</div>
+                </div>
+
+                <div>
                     <Label className="font-semibold">⏱️ Wait After Short Load (ms)</Label>
                     <input
                         type="number"
