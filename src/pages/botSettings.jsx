@@ -42,14 +42,14 @@ const BotSettingsPage = () => {
                     searchQuery: '',
                     cycleDelayMin: 20000,
                     cycleDelayMax: 40000,
-                    jobScrapeDelayMin: 1000,
-                    jobScrapeDelayMax: 2000,
+                    delayBetweenJobsScrapingMin: 1000,
+                    delayBetweenJobsScrapingMax: 2000,
                     cloudflareWaitBeforeClick: 3000,
                     cloudflareWaitAfterClick: 5000,
                     jobDetailPreScrapeDelayMin: 2000,
                     jobDetailPreScrapeDelayMax: 3000,
                     htmlLengthThreshold: 10000,
-                    htmlWaitAfterShortLoad: 1500,
+                    waitIfHtmlThresholdFailed: 1500,
                     heartbeatInterval: 10000,
                     perPage: 50
                 });
@@ -66,7 +66,7 @@ const BotSettingsPage = () => {
 
         if (s.cycleDelayMin < 0 || s.cycleDelayMax < 0 || s.cycleDelayMax < s.cycleDelayMin)
             errors.push('Invalid cycle delay range');
-        if (s.jobScrapeDelayMin < 0 || s.jobScrapeDelayMax < 0 || s.jobScrapeDelayMax < s.jobScrapeDelayMin)
+        if (s.delayBetweenJobsScrapingMin < 0 || s.jobScrapeDelayMax < 0 || s.jobScrapeDelayMax < s.delayBetweenJobsScrapingMax)
             errors.push('Invalid job scrape delay range');
         if (s.jobDetailPreScrapeDelayMin < 0 || s.jobDetailPreScrapeDelayMax < 0 || s.jobDetailPreScrapeDelayMax < s.jobDetailPreScrapeDelayMin)
             errors.push('Invalid pre-scrape delay range');
@@ -74,7 +74,7 @@ const BotSettingsPage = () => {
             errors.push('Invalid Cloudflare wait values');
         if (s.htmlLengthThreshold < 1000)
             errors.push('HTML length threshold too low');
-        if (s.htmlWaitAfterShortLoad < 0)
+        if (s.waitIfHtmlThresholdFailed < 0)
             errors.push('Invalid wait after short load');
         if (s.heartbeatInterval < 1000)
             errors.push('Heartbeat interval too low');
@@ -154,7 +154,7 @@ const BotSettingsPage = () => {
                         min: 0, max: 60000
                     },
                     {
-                        keys: ['jobScrapeDelayMin', 'jobScrapeDelayMax'],
+                        keys: ['delayBetweenJobsScrapingMin', 'delayBetweenJobsScrapingMax'],
                         label: '🧲 Delay Between Job Scrapes (ms)',
                         helper: 'Delay between scraping each job detail.',
                         min: 0, max: 10000
@@ -209,8 +209,8 @@ const BotSettingsPage = () => {
                         type="number"
                         className="input-field w-40"
                         min={0}
-                        value={settings.waitAfterFeedPageLoad}
-                        onChange={handleInput('waitAfterFeedPageLoad')}
+                        value={settings.waitIfHtmlThresholdFailded}
+                        onChange={handleInput('waitIfHtmlThresholdFailded')}
                     />
                     <div className="text-sm text-muted">Delay added if HTML is smaller than threshold.</div>
                 </div>
@@ -221,8 +221,8 @@ const BotSettingsPage = () => {
                         type="number"
                         className="input-field w-40"
                         min={0}
-                        value={settings.htmlWaitAfterShortLoad}
-                        onChange={handleInput('htmlWaitAfterShortLoad')}
+                        value={settings.waitIfHtmlThresholdFailed}
+                        onChange={handleInput('waitIfHtmlThresholdFailed')}
                     />
                     <div className="text-sm text-muted">Delay added if HTML is smaller than threshold.</div>
                 </div>
