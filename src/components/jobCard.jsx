@@ -3,16 +3,30 @@ import { formatDistanceToNow } from 'date-fns';
 import { BadgeCheck, PhoneCall, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 
 const FIELD_LABELS = {
+  // 💬 Keyword-derived fields (scored dynamically, not shown here)
+
+  // ✅ Exact match fields
+  experienceLevel: '📊 Experience Level',
+  pricingModel: '💼 Pricing Model',
+  clientCountry: '🌍 Client Country',
+
+  // ✅ Boolean fields
+  clientPhoneVerified: '📞 Phone Verified',
+  clientPaymentVerified: '💳 Payment Verified',
+
+  // ✅ Ranged fields
+  minRange: '💲Min Budget',
+  maxRange: '💲Max Budget',
   budgetFixed: '📦 Budget (Fixed)',
   budgetHourly: '⏱️ Budget (Hourly)',
   clientSpend: '💰 Total Spend',
   clientHireRate: '🧑‍💼 Hire Rate',
   clientRating: '⭐ Client Rating',
-  clientReviews: '🗣️ Reviews',
-  requiredConnects: '🔁 Connects',
-  minRange: '💲Min Budget',
-  maxRange: '💲Max Budget'
+  clientReviews: '🗣️ Client Reviews',
+  requiredConnects: '🔁 Required Connects',
+  clientAverageHourlyRate: '⚖️ Avg Hourly Rate'
 };
+
 
 
 const JobCard = ({ job }) => {
@@ -162,7 +176,7 @@ const JobCard = ({ job }) => {
                                 .filter(([, score]) => score > 0)
                                 .map(([field, score]) => (
                                     <div key={field} className="text-xs text-gray-600 ml-2">
-                                        ✅ {FIELD_LABELS[field] || field}: +{score}
+                                        ✅ {FIELD_LABELS[field] || field}: +{score} score
                                     </div>
                                 ))}
                         </div>
