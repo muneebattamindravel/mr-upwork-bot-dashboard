@@ -2,6 +2,19 @@ import React, { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { BadgeCheck, PhoneCall, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 
+const FIELD_LABELS = {
+  budgetFixed: '📦 Budget (Fixed)',
+  budgetHourly: '⏱️ Budget (Hourly)',
+  clientSpend: '💰 Total Spend',
+  clientHireRate: '🧑‍💼 Hire Rate',
+  clientRating: '⭐ Client Rating',
+  clientReviews: '🗣️ Reviews',
+  requiredConnects: '🔁 Connects',
+  minRange: '💲Min Budget',
+  maxRange: '💲Max Budget'
+};
+
+
 const JobCard = ({ job }) => {
     const {
         title,
@@ -149,7 +162,7 @@ const JobCard = ({ job }) => {
                                 .filter(([, score]) => score > 0)
                                 .map(([field, score]) => (
                                     <div key={field} className="text-xs text-gray-600 ml-2">
-                                        ✅ {field}: +{score}
+                                        ✅ {FIELD_LABELS[field] || field}: +{score}
                                     </div>
                                 ))}
                         </div>
