@@ -40,6 +40,7 @@ const BotSettingsPage = () => {
                 setSettings({
                     botId,
                     searchQuery: '',
+                    waitAfterFeedPageLoad: 5000,
                     cycleDelayMin: 20000,
                     cycleDelayMax: 40000,
                     delayBetweenJobsScrapingMin: 1000,
@@ -66,7 +67,7 @@ const BotSettingsPage = () => {
 
         if (s.cycleDelayMin < 0 || s.cycleDelayMax < 0 || s.cycleDelayMax < s.cycleDelayMin)
             errors.push('Invalid cycle delay range');
-        if (s.delayBetweenJobsScrapingMin < 0 || s.jobScrapeDelayMax < 0 || s.jobScrapeDelayMax < s.delayBetweenJobsScrapingMax)
+        if (s.delayBetweenJobsScrapingMin < 0 || s.delayBetweenJobsScrapingMax < 0 || s.delayBetweenJobsScrapingMax < s.delayBetweenJobsScrapingMin)
             errors.push('Invalid job scrape delay range');
         if (s.jobDetailPreScrapeDelayMin < 0 || s.jobDetailPreScrapeDelayMax < 0 || s.jobDetailPreScrapeDelayMax < s.jobDetailPreScrapeDelayMin)
             errors.push('Invalid pre-scrape delay range');
@@ -75,7 +76,7 @@ const BotSettingsPage = () => {
         if (s.htmlLengthThreshold < 1000)
             errors.push('HTML length threshold too low');
         if (s.waitIfHtmlThresholdFailed < 0)
-            errors.push('Invalid wait after short load');
+            errors.push('Invalid Wait If Html Is Less Than Threshold');
         if (s.heartbeatInterval < 1000)
             errors.push('Heartbeat interval too low');
         if (s.perPage <= 0 || s.perPage > 100)
@@ -204,19 +205,19 @@ const BotSettingsPage = () => {
                 </div>
 
                 <div>
-                    <Label className="font-semibold">⏱️ Water After Feed Page Load (ms)</Label>
+                    <Label className="font-semibold">🕐 Wait After Feed Page Load (ms)</Label>
                     <input
                         type="number"
                         className="input-field w-40"
                         min={0}
-                        value={settings.waitIfHtmlThresholdFailded}
-                        onChange={handleInput('waitIfHtmlThresholdFailded')}
+                        value={settings.waitAfterFeedPageLoad}
+                        onChange={handleInput('waitAfterFeedPageLoad')}
                     />
-                    <div className="text-sm text-muted">Delay added if HTML is smaller than threshold.</div>
+                    <div className="text-sm text-muted">Delay after feed page loads, before scraping starts.</div>
                 </div>
 
                 <div>
-                    <Label className="font-semibold">⏱️ Wait After Short Load (ms)</Label>
+                    <Label className="font-semibold">⏱️ Wait If Html Is Less Than Threshold (ms)</Label>
                     <input
                         type="number"
                         className="input-field w-40"
