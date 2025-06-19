@@ -3,28 +3,28 @@ import { formatDistanceToNow } from 'date-fns';
 import { BadgeCheck, PhoneCall, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 
 const FIELD_LABELS = {
-  // 💬 Keyword-derived fields (scored dynamically, not shown here)
+    // 💬 Keyword-derived fields (scored dynamically, not shown here)
 
-  // ✅ Exact match fields
-  experienceLevel: '📊 Experience Level',
-  pricingModel: '💼 Pricing Model',
-  clientCountry: '🌍 Client Country',
+    // ✅ Exact match fields
+    experienceLevel: '📊 Experience Level',
+    pricingModel: '💼 Pricing Model',
+    clientCountry: '🌍 Client Country',
 
-  // ✅ Boolean fields
-  clientPhoneVerified: '📞 Phone Verified',
-  clientPaymentVerified: '💳 Payment Verified',
+    // ✅ Boolean fields
+    clientPhoneVerified: '📞 Phone Verified',
+    clientPaymentVerified: '💳 Payment Verified',
 
-  // ✅ Ranged fields
-  minRange: '💲Min Budget',
-  maxRange: '💲Max Budget',
-  budgetFixed: '📦 Budget (Fixed)',
-  budgetHourly: '⏱️ Budget (Hourly)',
-  clientSpend: '💰 Total Spend',
-  clientHireRate: '🧑‍💼 Hire Rate',
-  clientRating: '⭐ Client Rating',
-  clientReviews: '🗣️ Client Reviews',
-  requiredConnects: '🔁 Required Connects',
-  clientAverageHourlyRate: '⚖️ Avg Hourly Rate'
+    // ✅ Ranged fields
+    minRange: '💲Min Budget',
+    maxRange: '💲Max Budget',
+    budgetFixed: '📦 Budget (Fixed)',
+    budgetHourly: '⏱️ Budget (Hourly)',
+    clientSpend: '💰 Total Spend',
+    clientHireRate: '🧑‍💼 Hire Rate',
+    clientRating: '⭐ Client Rating',
+    clientReviews: '🗣️ Client Reviews',
+    requiredConnects: '🔁 Required Connects',
+    clientAverageHourlyRate: '⚖️ Avg Hourly Rate'
 };
 
 
@@ -172,16 +172,18 @@ const JobCard = ({ job }) => {
                         {/* Field Score Breakdown */}
                         <div>
                             <div className="font-semibold text-xs text-gray-800">Field Score Breakdown:</div>
-                            {Object.entries(fieldScoreBreakdown)
-                                .filter(([, score]) => score > 0)
-                                .map(([field, score]) => (
-                                    <div key={field} className="text-xs text-gray-600 ml-2">
-                                        ✅ {FIELD_LABELS[field] || field}: +{score} score
+                            {Object.entries(fieldScoreBreakdown).map(([field, score]) => {
+                                const isPositive = score > 0;
+                                const isNegative = score < 0;
+                                const colorClass = isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-gray-500';
+
+                                return (
+                                    <div key={field} className={`text-xs ml-2 ${colorClass}`}>
+                                        {isPositive ? '✅' : isNegative ? '⚠️' : '➖'} {FIELD_LABELS[field] || field}: {score >= 0 ? `+${score}` : score} score
                                     </div>
-                                ))}
+                                );
+                            })}
                         </div>
-
-
                     </div>
                 )}
             </div>

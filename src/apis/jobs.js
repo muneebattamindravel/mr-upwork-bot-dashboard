@@ -16,3 +16,7 @@ export const getTotalJobs = async () => {
   const response = await axios.get('/api/jobs/total');
   return response.data.total;
 };
+
+export const deleteAllJobs = async () => {
+  return await axios.delete('/jobs');
+};

@@ -9,7 +9,7 @@ import JobCard from '@/components/jobCard';
 import { getFilteredJobs } from '@/apis/jobs';
 import { subDays, format } from 'date-fns';
 import { RotateCcw } from 'lucide-react';
-import { reprocessJobs } from '../apis/jobs';
+import { reprocessJobs, deleteAllJobs } from '../apis/jobs';
 import { Loader2 } from 'lucide-react';;;
 
 const defaultFilters = {
@@ -39,7 +39,7 @@ const JobsPage = () => {
     const [sortBy, setSortBy] = useState('postedDate');
     const [sortOrder, setSortOrder] = useState('desc');
     const [allJobs, setAllJobs] = useState([]);
-    // const [totalJobs, setTotalJobs] = useState(0);
+    const [deleting, setDeleting] = useState(false);
     const [totalAllJobs, setTotalAllJobs] = useState(0);
     const [reprocessing, setReprocessing] = useState(false);
 
@@ -70,6 +70,25 @@ const JobsPage = () => {
         setFilters(newFilters);
         fetchJobs(newFilters);
     };
+
+    const handleDeleteAllJobs = async () => {
+        const confirmed = window.confirm('Are you sure you want to delete ALL jobs? This action is irreversible.');
+        if (!confirmed) return;
+
+        setDeleting(true);
+
+        try {
+            await deleteAllJobs();
+            toast.success('✅ All jobs deleted!');
+            window.location.reload();
+        } catch (err) {
+            console.error('[Delete Jobs Error]', err);
+            toast.error('❌ Failed to delete jobs');
+        } finally {
+            setDeleting(false);
+        }
+    };
+
 
     const handleReprocess = async () => {
         try {
@@ -387,6 +406,22 @@ const JobsPage = () => {
                         '🔄 Reprocess Relevance'
                     )}
                 </button>
+
+                <button
+                    onClick={handleDeleteAllJobs}
+                    disabled={deleting}
+                    className={`btn-outline text-red-600 ml-4 ${deleting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                    {deleting ? (
+                        <span className="flex items-center gap-1">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Deleting...
+                        </span>
+                    ) : (
+                        '🗑️ Delete All Jobs'
+                    )}
+                </button>
+
             </div>
 
             <div className="flex items-center gap-3 mb-4 text-sm text-muted-foreground">
