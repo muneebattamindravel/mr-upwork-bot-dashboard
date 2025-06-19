@@ -6,23 +6,24 @@ export const getBots = async () => {
 };
 
 export const getBotsSummary = async () => {
-  const response = await axios.get('/bots/summary'); // No headers needed
+  const response = await axios.get('/bots/summary');
   return response.data;
 };
 
-export const startBotRemote = async (agentUrl) => {
-  const res = await axios.post(`${agentUrl}/start-bot`);
+export const startBotRemote = async (botId) => {
+  const res = await axios.post(`/bots/${botId}/start`);
   return res.data;
 };
 
-export const stopBotRemote = async (agentUrl) => {
-  const res = await axios.post(`${agentUrl}/stop-bot`);
+export const stopBotRemote = async (botId) => {
+  const res = await axios.post(`/bots/${botId}/stop`);
   return res.data;
 };
 
-export const checkBotStatus = async (agentUrl) => {
-  const res = await axios.get(`${agentUrl}/status`, {
+export const checkBotStatus = async (botId) => {
+  const res = await axios.get(`/bots/${botId}/status`, {
     timeout: 5000,
   });
-  return res.data;
+
+  return res.data.data.status;
 };

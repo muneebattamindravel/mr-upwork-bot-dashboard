@@ -30,7 +30,7 @@ const BotMonitor = () => {
       await Promise.all(
         botList.map(async (bot) => {
           try {
-            const statusRes = await checkBotStatus(bot.agentUrl);
+            const statusRes = await checkBotStatus(bot.botId);
             newAgentStatusMap[bot.botId] = statusRes.status || 'unknown';
           } catch {
             newAgentStatusMap[bot.botId] = 'unreachable';
@@ -58,12 +58,35 @@ const BotMonitor = () => {
   useEffect(() => {
     // Initial load: fetch bots and agent statuses
     const init = async () => {
-      await loadBots(); // calls getBots + checkBotStatus for each bot
+      try {
+        const botList = await getBots();
+        setBots(botList);
+        setSummary(calculateSummary(botList));
+
+        const newAgentStatusMap = {};
+
+        await Promise.all(
+          botList.map(async (bot) => {
+            try {
+              const status = await checkBotStatus(bot.botId); // returns "running" or "stopped"
+              newAgentStatusMap[bot.botId] = status;
+            } catch {
+              newAgentStatusMap[bot.botId] = 'unreachable';
+              toast.error(`Agent unreachable for "${bot.botId}"`);
+            }
+          })
+        );
+
+        setAgentStatusMap(newAgentStatusMap);
+      } catch (err) {
+        console.error('[Initial loadBots] ❌', err.message);
+        toast.error('Failed to fetch bots');
+      }
     };
 
     init();
 
-    // Only refresh bot list (not agent status) every 5 seconds
+    // Periodic bot list refresh only (not agent status)
     const interval = setInterval(async () => {
       try {
         const freshBots = await getBots();
@@ -78,34 +101,50 @@ const BotMonitor = () => {
   }, []);
 
 
+
   const handleToggle = async (bot) => {
-    const isRunning = agentStatusMap[bot.botId] === 'running';
-    const botId = bot.botId;
+  const botId = bot.botId;
+  const isRunning = agentStatusMap[botId] === 'running';
 
-    setLoadingMap((prev) => ({ ...prev, [botId]: true }));
+  setLoadingMap((prev) => ({ ...prev, [botId]: true }));
 
-    try {
-      const res = isRunning
-        ? await stopBotRemote(bot.agentUrl)
-        : await startBotRemote(bot.agentUrl);
+  try {
+    const res = isRunning
+      ? await stopBotRemote(botId)
+      : await startBotRemote(botId);
 
-      toast.success(res.message || `Bot ${isRunning ? 'stopped' : 'started'}`);
+    toast.success(res.message || `Bot ${isRunning ? 'stopped' : 'started'}`);
 
-      // 🔁 Refresh bots and agent status only after toggle
-      await loadBots();
-    } catch (err) {
-      toast.error(`Failed to ${isRunning ? 'stop' : 'start'} bot`);
-    } finally {
-      setLoadingMap((prev) => ({ ...prev, [botId]: false }));
-    }
-  };
+    // ✅ Immediately fetch updated bot list
+    const freshBots = await getBots();
+    setBots(freshBots);
+    setSummary(calculateSummary(freshBots));
+
+    // ✅ Then update individual agent status for this bot
+    const updatedStatus = await checkBotStatus(botId);
+    setAgentStatusMap((prev) => ({ ...prev, [botId]: updatedStatus }));
+  } catch (err) {
+    toast.error(`Failed to ${isRunning ? 'stop' : 'start'} bot`);
+  } finally {
+    setLoadingMap((prev) => ({ ...prev, [botId]: false }));
+  }
+};
+
 
   const formatTimeAgo = (timestamp) => {
     if (!timestamp) return 'unknown';
-    const diff = Math.floor((Date.now() - new Date(timestamp)) / 1000);
-    if (diff < 10) return 'Just now';
-    if (diff < 60) return `${diff} seconds ago`;
-    return `${Math.floor(diff / 60)} min ago`;
+
+    const diffInSeconds = Math.floor((Date.now() - new Date(timestamp)) / 1000);
+    const hours = Math.floor(diffInSeconds / 3600);
+    const minutes = Math.floor((diffInSeconds % 3600) / 60);
+    const seconds = diffInSeconds % 60;
+
+    let parts = [];
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0 || hours > 0) parts.push(`${minutes}m`);
+    parts.push(`${seconds}s`);
+
+    return `${parts.join(' ')} ago`;
   };
 
   return (
@@ -142,13 +181,17 @@ const BotMonitor = () => {
                   </span>
                 </div>
 
-                <div className="text-sm text-gray-800 mb-1">
-                  Status: <span className="font-medium">{bot.status}</span>
-                </div>
-
-                {bot.message && (
-                  <div className="text-sm text-gray-700 mb-1">Msg: {bot.message}</div>
+                {(bot.healthStatus === 'healthy' || bot.healthStatus === 'stuck') && (
+                  <>
+                    <div className="text-sm text-gray-800 mb-1">
+                      Status: <span className="font-medium">{bot.status}</span>
+                    </div>
+                    {bot.message && (
+                      <div className="text-sm text-gray-700 mb-1">Msg: {bot.message}</div>
+                    )}
+                  </>
                 )}
+
 
                 {bot.jobUrl && (
                   <div className="text-sm truncate mb-1">
