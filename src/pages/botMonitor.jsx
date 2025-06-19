@@ -103,48 +103,31 @@ const BotMonitor = () => {
 
 
   const handleToggle = async (bot) => {
-  const botId = bot.botId;
-  const isRunning = agentStatusMap[botId] === 'running';
+    const botId = bot.botId;
+    const isRunning = agentStatusMap[botId] === 'running';
 
-  setLoadingMap((prev) => ({ ...prev, [botId]: true }));
+    setLoadingMap((prev) => ({ ...prev, [botId]: true }));
 
-  try {
-    const res = isRunning
-      ? await stopBotRemote(botId)
-      : await startBotRemote(botId);
+    try {
+      const res = isRunning
+        ? await stopBotRemote(botId)
+        : await startBotRemote(botId);
 
-    toast.success(res.message || `Bot ${isRunning ? 'stopped' : 'started'}`);
+      toast.success(res.message || `Bot ${isRunning ? 'stopped' : 'started'}`);
 
-    // ✅ Immediately fetch updated bot list
-    const freshBots = await getBots();
-    setBots(freshBots);
-    setSummary(calculateSummary(freshBots));
+      // ✅ Immediately fetch updated bot list
+      const freshBots = await getBots();
+      setBots(freshBots);
+      setSummary(calculateSummary(freshBots));
 
-    // ✅ Then update individual agent status for this bot
-    const updatedStatus = await checkBotStatus(botId);
-    setAgentStatusMap((prev) => ({ ...prev, [botId]: updatedStatus }));
-  } catch (err) {
-    toast.error(`Failed to ${isRunning ? 'stop' : 'start'} bot`);
-  } finally {
-    setLoadingMap((prev) => ({ ...prev, [botId]: false }));
-  }
-};
-
-
-  const formatTimeAgo = (timestamp) => {
-    if (!timestamp) return 'unknown';
-
-    const diffInSeconds = Math.floor((Date.now() - new Date(timestamp)) / 1000);
-    const hours = Math.floor(diffInSeconds / 3600);
-    const minutes = Math.floor((diffInSeconds % 3600) / 60);
-    const seconds = diffInSeconds % 60;
-
-    let parts = [];
-    if (hours > 0) parts.push(`${hours}h`);
-    if (minutes > 0 || hours > 0) parts.push(`${minutes}m`);
-    parts.push(`${seconds}s`);
-
-    return `${parts.join(' ')} ago`;
+      // ✅ Then update individual agent status for this bot
+      const updatedStatus = await checkBotStatus(botId);
+      setAgentStatusMap((prev) => ({ ...prev, [botId]: updatedStatus }));
+    } catch (err) {
+      toast.error(`Failed to ${isRunning ? 'stop' : 'start'} bot`);
+    } finally {
+      setLoadingMap((prev) => ({ ...prev, [botId]: false }));
+    }
   };
 
   return (
@@ -207,8 +190,23 @@ const BotMonitor = () => {
                   </div>
                 )}
 
+                {bot.stats && (
+                  <div className="text-xs text-gray-600 mb-2 space-y-1">
+                    <div>📊 Jobs Scraped: <span className="font-semibold">{bot.stats.jobsScraped ?? 0}</span></div>
+
+                    <div>⏱️ Active Time: <span className="font-semibold">
+                      {formatTime(bot.stats.totalActiveTime)}
+                    </span></div>
+
+                    <div>🛡️ Cloudflare Hurdles: <span className="font-semibold">{bot.stats.cloudflareHurdles ?? 0}</span></div>
+                    <div>✅ Cloudflare Solves: <span className="font-semibold">{bot.stats.cloudflareSolves ?? 0}</span></div>
+
+                    <div>🔐 Login Hurdles: <span className="font-semibold">{bot.stats.loginHurdles ?? 0}</span></div>
+                  </div>
+                )}
+
                 <div className="text-xs text-gray-500 mb-2">
-                  Last Seen : {formatTimeAgo(bot.lastSeen)}
+                  Last Seen : {formatTime(bot.lastSeen, { ago: true })}
                 </div>
 
                 <div className="text-xs text-gray-500 mb-1">
@@ -260,5 +258,26 @@ const BotMonitor = () => {
     </div>
   );
 };
+
+const formatTime = (input, opts = { ago: false }) => {
+  if (!input) return 'unknown';
+
+  const now = Date.now();
+  const time = typeof input === 'number' ? input : new Date(input).getTime();
+  const diff = Math.max(0, opts.ago ? now - time : time); // ⬅ prevent -ve durations
+
+  const totalSeconds = Math.floor(diff / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  let parts = [];
+  if (hours) parts.push(`${hours}h`);
+  if (minutes || hours) parts.push(`${minutes}m`);
+  parts.push(`${seconds}s`);
+
+  return opts.ago ? `${parts.join(' ')} ago` : parts.join(' ');
+};
+
 
 export default BotMonitor;
