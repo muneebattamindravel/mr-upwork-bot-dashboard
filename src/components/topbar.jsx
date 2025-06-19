@@ -6,8 +6,20 @@ const Topbar = ({ setSidebarOpen }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
 
+  // ✅ Safe parse of localStorage user
+  let user = null;
+  try {
+    const raw = localStorage.getItem('user');
+    user = raw && raw !== 'undefined' ? JSON.parse(raw) : null;
+  } catch {
+    user = null;
+  }
+
+  const displayName = user?.name || 'User';
+
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     navigate('/login');
   };
 
@@ -45,7 +57,7 @@ const Topbar = ({ setSidebarOpen }) => {
             className="flex items-center gap-2 bg-purple-100 hover:bg-purple-200 text-purple-800 font-medium px-3 py-1.5 rounded-full"
           >
             <User className="w-5 h-5" />
-            <span className="hidden sm:inline">Admin</span>
+            <span className="hidden sm:inline">{displayName}</span>
           </button>
 
           {menuOpen && (

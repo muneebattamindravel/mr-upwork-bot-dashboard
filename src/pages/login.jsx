@@ -36,10 +36,11 @@ const Login = () => {
     setLoading(true);
     try {
       const res = await axios.post('/auth/login', { username, password });
-      const { token, user } = res.data;
+      const { token, user } = res.data.data;
 
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
+
       toast.success('Logged in successfully');
       navigate('/jobs');
     } catch (err) {
