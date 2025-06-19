@@ -150,9 +150,10 @@ const JobCard = ({ job }) => {
                         <div className="ml-2">
                             <strong>Keyword Score:</strong> {keywordScore}<br />
                             <strong>Field Score:</strong> {fieldScore}<br />
-                            <strong>Final Score:</strong> ({relevance.keywordWeightPercent}% × {keywordScore} + {relevance.fieldWeightPercent}% × {fieldScore}) ÷ 100 = {
-                                ((relevance.keywordWeightPercent * keywordScore + relevance.fieldWeightPercent * fieldScore) / 100).toFixed(1)
-                            }
+                            <strong>Final Score:</strong>{' '}
+                            {`{(${relevance.keywordWeightPercent}% × ${keywordScore} = ${(relevance.keywordWeightPercent * keywordScore / 100).toFixed(1)}) + (${relevance.fieldWeightPercent}% × ${fieldScore} = ${(relevance.fieldWeightPercent * fieldScore / 100).toFixed(1)})} ÷ 100 = ${(
+                                (relevance.keywordWeightPercent * keywordScore + relevance.fieldWeightPercent * fieldScore) / 100
+                            ).toFixed(1)}`}
                         </div>
 
 
@@ -163,7 +164,7 @@ const JobCard = ({ job }) => {
                                 <div key={kw} className="text-xs text-gray-600 ml-2">
                                     🔹 <strong>{kw}</strong>: {val.totalMatches} hits
                                     (Title: {val.titleMatches}, Desc: {val.descMatches}, Cat: {val.catMatches})
-                                    <span className="text-green-600 font-semibold ml-1">[+{val.weighted}]</span>
+                                    <span className="text-green-600 font-semibold ml-1">+{val.weighted}</span>
                                 </div>
                             ))}
                         </div>
@@ -172,17 +173,26 @@ const JobCard = ({ job }) => {
                         {/* Field Score Breakdown */}
                         <div>
                             <div className="font-semibold text-xs text-gray-800">Field Score Breakdown:</div>
-                            {Object.entries(fieldScoreBreakdown).map(([field, score]) => {
-                                const isPositive = score > 0;
-                                const isNegative = score < 0;
-                                const colorClass = isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-gray-500';
+                            {Object.entries(fieldScoreBreakdown)
+                                .filter(([, score]) => score !== 0)
+                                .map(([field, score]) => {
+                                    const isPositive = score > 0;
+                                    const isNegative = score < 0;
+                                    const colorClass = isPositive ? 'text-green-600' : 'text-red-600';
+                                    const icon = isPositive ? '✅' : '⚠️';
 
-                                return (
-                                    <div key={field} className={`text-xs ml-2 ${colorClass}`}>
-                                        {isPositive ? '✅' : isNegative ? '⚠️' : '➖'} {FIELD_LABELS[field] || field}: {score >= 0 ? `+${score}` : score} score
-                                    </div>
-                                );
-                            })}
+                                    return (
+                                        <div key={field} className="text-xs ml-2 flex items-center gap-1">
+                                            <span>{icon}</span>
+                                            <span className="text-gray-800">{FIELD_LABELS[field] || field}:</span>
+                                            <span className={`font-semibold ${colorClass}`}>
+                                                {score >= 0 ? `+${score}` : score}
+                                            </span>
+                                            <span className="text-gray-800">score</span>
+                                        </div>
+                                    );
+                                })}
+
                         </div>
                     </div>
                 )}
