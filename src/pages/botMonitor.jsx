@@ -178,17 +178,10 @@ const BotMonitor = () => {
 
                 {bot.jobUrl && (
                   <div className="text-sm truncate mb-1">
-                    Job:{' '}
-                    <a
-                      href={bot.jobUrl}
-                      className="text-blue-600 underline"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {bot.jobUrl}
-                    </a>
+                    Job: <span className="text-gray-800">{bot.jobUrl}</span>
                   </div>
                 )}
+
 
                 {bot.stats && (
                   <div className="text-xs text-gray-600 mb-2 space-y-1">
