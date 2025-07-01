@@ -94,27 +94,24 @@ const JobCard = ({ job }) => {
     return (
         <div className="bg-white shadow-md border rounded-lg p-4 space-y-3">
             {/* Header */}
-            <div className="flex justify-between items-start flex-wrap">
+            <div className="flex justify-between items-center flex-wrap">
                 <span className="text-lg font-semibold text-blue-700">
                     {title}
                 </span>
 
-                <div className="flex flex-col items-end">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="text-gray-700">
+                        🔑 Keyword Score: {keywordScore} | 📊 Field Score: {fieldScore}
+                    </span>
                     <span
-                        className={`text-sm font-semibold text-white px-2.5 py-1 rounded shadow ${getRelevanceColor(relevanceScore)}`}
+                        className={`font-semibold text-white px-2.5 py-1 rounded shadow ${getRelevanceColor(relevanceScore)}`}
                         title={`Keywords: ${keywordScore}, Fields: ${fieldScore}`}
                     >
                         Relevance: {relevanceScore}%
                     </span>
-
-                    <span className="text-xs text-gray-700 mt-0.5">
-                        Keyword Score {keywordScore}
-                    </span>
-                    <span className="text-xs text-gray-700 mt-0.5">
-                        Field Score {fieldScore}
-                    </span>
                 </div>
             </div>
+
 
             {/* Relevance Summary */}
             <div className="text-xs text-gray-700 space-y-1">
