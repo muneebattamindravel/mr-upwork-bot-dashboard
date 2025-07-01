@@ -30,9 +30,10 @@ import {
 import {
   getKBList,
   createProfile,
-  loadFile,
-  saveFile,
+  getProfile,
+  updateProfile,
   deleteProfile,
+  toggleProfileEnabled,
 } from '../apis/kb';
 
 const KBManager = () => {
@@ -55,13 +56,17 @@ const KBManager = () => {
   const loadProfiles = async () => {
     try {
       const response = await getKBList();
-      const data = response.data.data;
-      const profilesList = data.profiles || [];
+      const profilesList = response.data.data.profiles || [];
       setProfiles(profilesList);
+
       if (profilesList.length > 0) {
-        const firstProfile = profilesList[0];
-        setSelectedProfile(firstProfile);
-        fetchProfileFiles(firstProfile);
+        setSelectedProfile(profilesList[0]);
+        fetchProfile(profilesList[0]._id);
+      } else {
+        setSelectedProfile(null);
+        setKeywordsText('');
+        setProjectsText('');
+        setWeightsJson({});
       }
     } catch (err) {
       console.error('Failed to load profiles:', err);
@@ -69,54 +74,73 @@ const KBManager = () => {
     }
   };
 
-  const fetchProfileFiles = async (profileName) => {
+  const fetchProfile = async (profileId) => {
+    if (!profileId) return;
+
     setKeywordsText('');
     setProjectsText('');
     setWeightsJson({});
 
     try {
-      const [keywordsRes, projectsRes, weightsRes] = await Promise.all([
-        loadFile(profileName, 'keywords.txt'),
-        loadFile(profileName, 'projects.md'),
-        loadFile(profileName, 'weights.json'),
-      ]);
-
-      setKeywordsText(keywordsRes.data.data.content || '');
-      setProjectsText(projectsRes.data.data.content || '');
-
-      try {
-        const parsed = JSON.parse(weightsRes.data.data.content || '{}');
-        setWeightsJson(parsed);
-      } catch (jsonErr) {
-        toast.error('Invalid weights.json format');
-        console.error('Invalid weights.json:', jsonErr);
-      }
+      const res = await getProfile(profileId);
+      const p = res.data.data.profile;
+      setSelectedProfile(p);
+      setKeywordsText(p.keywords || '');
+      setProjectsText(p.projects || '');
+      setWeightsJson(p.weights || {});
     } catch (err) {
-      console.error('❌ Failed to load profile files:', err);
-      toast.error('Failed to load one or more files');
+      console.error('❌ Failed to load profile:', err);
+      toast.error('Failed to load profile');
+    }
+  };
+
+  const handleSaveKeywords = async () => {
+    if (!selectedProfile) return;
+    setSavingFile('keywords');
+    try {
+      await updateProfile(selectedProfile._id, { keywords: keywordsText });
+      toast.success('Keywords saved');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to save keywords');
+    } finally {
+      setSavingFile(null);
+    }
+  };
+
+  const handleSaveProjects = async () => {
+    if (!selectedProfile) return;
+    setSavingFile('projects');
+    try {
+      await updateProfile(selectedProfile._id, { projects: projectsText });
+      toast.success('Projects saved');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to save projects');
+    } finally {
+      setSavingFile(null);
     }
   };
 
   const handleSaveWeights = async () => {
-    setSavingFile('weights.json');
+    if (!selectedProfile) return;
+    setSavingFile('weights');
     try {
-      const content = JSON.stringify(weightsJson, null, 2);
-      await saveFile(selectedProfile, 'weights.json', content);
-      toast.success('weights.json saved');
+      await updateProfile(selectedProfile._id, { weights: weightsJson });
+      toast.success('Weights saved');
     } catch (err) {
       console.error(err);
-      toast.error('Failed to save weights.json');
+      toast.error('Failed to save weights');
     } finally {
-      setSavingFile(null); // 🔁 THIS is what stops the loader
+      setSavingFile(null);
     }
   };
 
-
   const handleCreateProfile = async () => {
-    if (!newProfileName) return toast.error('Enter a profile name');
+    if (!newProfileName.trim()) return toast.error('Enter a profile name');
     setLoading(true);
     try {
-      await createProfile({ profileName: newProfileName });
+      await createProfile({ profileName: newProfileName.trim() });
       toast.success('Profile created');
       setNewProfileName('');
       await loadProfiles();
@@ -127,33 +151,15 @@ const KBManager = () => {
     setLoading(false);
   };
 
-  const handleSelectProfile = (value) => {
-    setSelectedProfile(value);
-    fetchProfileFiles(value);
-  };
-
-  const handleSaveFile = async (fileName, content) => {
-    if (!selectedProfile) return;
-    setSavingFile(fileName);
-    try {
-      await saveFile(selectedProfile, fileName, content);
-      toast.success(`${fileName} saved`);
-    } catch (err) {
-      console.error(err);
-      toast.error(`Failed to save ${fileName}`);
-    }
-    setSavingFile(null);
+  const handleSelectProfile = (id) => {
+    fetchProfile(id);
   };
 
   const handleDeleteProfile = async () => {
     if (!selectedProfile) return;
     try {
-      await deleteProfile({ profileName: selectedProfile });
-      toast.success(`Profile "${selectedProfile}" deleted`);
-      setSelectedProfile(null);
-      setKeywordsText('');
-      setProjectsText('');
-      setWeightsJson({});
+      await deleteProfile(selectedProfile._id); // ✅ pass ID directly, not { id: ... }
+      toast.success(`Profile "${selectedProfile.profileName}" deleted`);
       await loadProfiles();
     } catch (err) {
       console.error(err);
@@ -161,14 +167,22 @@ const KBManager = () => {
     }
   };
 
+
+  const handleToggleEnabled = async (e) => {
+    if (!selectedProfile) return;
+    try {
+      await toggleProfileEnabled(selectedProfile._id, e.target.checked);
+      toast.success(`Profile ${e.target.checked ? 'enabled' : 'disabled'}`);
+      await loadProfiles();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to toggle status');
+    }
+  };
+
   useEffect(() => {
     loadProfiles();
   }, []);
-
-  const isInputInvalid =
-    newProfileName.trim() === '' ||
-    !/^[a-zA-Z0-9_-]+$/.test(newProfileName) ||
-    newProfileName.length > 20;
 
   return (
     <div className="p-4 max-w-screen-xl w-full space-y-6 mx-auto">
@@ -179,123 +193,153 @@ const KBManager = () => {
         </h1>
         <div className="flex flex-col md:flex-row items-start md:items-end gap-4">
           <Input
-            className={`input-field ${newProfileName && isInputInvalid ? 'border-red-500 ring-red-500' : ''}`}
+            className="input-field"
             placeholder="Enter new profile name"
             value={newProfileName}
             onChange={(e) => setNewProfileName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleCreateProfile();
+            }}
           />
-          <LoadingButton
-            loading={loading}
-            onClick={handleCreateProfile}
-            disabled={isInputInvalid}
-          >
+          <LoadingButton loading={loading} onClick={handleCreateProfile}>
             Create Profile
           </LoadingButton>
         </div>
 
-        {/* Profile Selector + Delete */}
-        <div className="flex flex-col md:flex-row items-end gap-4">
-          <div className="w-full md:w-1/2">
-            <Select onValueChange={handleSelectProfile} value={selectedProfile}>
-              <SelectTrigger className="select-trigger w-full">
-                <SelectValue placeholder="Select a profile" />
-              </SelectTrigger>
-              <SelectContent className="select-content">
-                {profiles.map((name) => (
-                  <SelectItem key={name} value={name}>
-                    {name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {profiles.length > 0 ? (
+          <div className="flex flex-col md:flex-row items-end gap-4">
+            <div className="w-full md:w-1/2">
+              <Select
+                onValueChange={handleSelectProfile}
+                value={selectedProfile?._id || ''}
+              >
+                <SelectTrigger className="select-trigger w-full">
+                  <SelectValue placeholder="Select a profile" />
+                </SelectTrigger>
+                <SelectContent className="select-content">
+                  {profiles.map((p) => (
+                    <SelectItem key={p._id} value={p._id}>
+                      {p.profileName} {p.enabled ? '' : '(Disabled)'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedProfile && (
+              <>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedProfile.enabled}
+                    onChange={handleToggleEnabled}
+                  />
+                  <span className="text-sm">Enabled</span>
+                </label>
+
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button className="btn-danger flex items-center gap-1">
+                      <Trash2 className="w-4 h-4" /> Delete
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="bg-white text-black rounded-md shadow-xl">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Delete "{selectedProfile.profileName}"?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete the profile.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel className="btn-outline">
+                        Cancel
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDeleteProfile}
+                        className="btn-danger"
+                      >
+                        Yes, delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
           </div>
-          {selectedProfile && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <button className="btn-danger flex items-center gap-1">
-                  <Trash2 className="w-4 h-4" /> Delete
-                </button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="bg-white text-black rounded-md shadow-xl">
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete "{selectedProfile}"?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete the profile and its files.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel className="btn-outline">Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDeleteProfile}
-                    className="btn-danger"
-                  >
-                    Yes, delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-        </div>
+        ) : (
+          <p className="text-gray-600 text-sm">
+            No profiles found. Please create one to get started.
+          </p>
+        )}
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column */}
-        <div className="space-y-6">
-          {/* Keywords */}
-          <div className="bg-white p-4 rounded-md shadow-md">
-            <label className="field-label">Keywords</label>
-            <Textarea
-              className="textarea-field"
-              value={keywordsText}
-              onChange={(e) => setKeywordsText(e.target.value)}
-              placeholder="Contents of keywords.txt"
-            />
-            <LoadingButton
-              onClick={() => handleSaveFile('keywords.txt', keywordsText)}
-              loading={savingFile === 'keywords.txt'}
-              className="mt-2"
-            >
-              Save Keywords
-            </LoadingButton>
+      {selectedProfile ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column */}
+          <div className="space-y-6">
+            {/* Keywords */}
+            <div className="bg-white p-4 rounded-md shadow-md">
+              <label className="field-label">Keywords</label>
+              <Textarea
+                className="textarea-field"
+                value={keywordsText}
+                onChange={(e) => setKeywordsText(e.target.value)}
+                placeholder="Keywords..."
+              />
+              <LoadingButton
+                onClick={handleSaveKeywords}
+                loading={savingFile === 'keywords'}
+                className="mt-2"
+              >
+                Save Keywords
+              </LoadingButton>
+            </div>
+
+            {/* Projects */}
+            <div className="bg-white p-4 rounded-md shadow-md">
+              <label className="field-label">Projects</label>
+              <Textarea
+                className="textarea-field"
+                value={projectsText}
+                onChange={(e) => setProjectsText(e.target.value)}
+                placeholder="Projects..."
+              />
+              <LoadingButton
+                onClick={handleSaveProjects}
+                loading={savingFile === 'projects'}
+                className="mt-2"
+              >
+                Save Projects
+              </LoadingButton>
+            </div>
           </div>
 
-          {/* Projects */}
-          <div className="bg-white p-4 rounded-md shadow-md">
-            <label className="field-label">Projects</label>
-            <Textarea
-              className="textarea-field"
-              value={projectsText}
-              onChange={(e) => setProjectsText(e.target.value)}
-              placeholder="Contents of projects.md"
+          {/* Right Column */}
+          <div className="bg-white p-4 rounded-md shadow-md space-y-4">
+            <label className="field-label">Weights</label>
+            <JsonEditor
+              data={weightsJson}
+              setData={setWeightsJson}
+              className="json-editor"
             />
             <LoadingButton
-              onClick={() => handleSaveFile('projects.md', projectsText)}
-              loading={savingFile === 'projects.md'}
+              onClick={handleSaveWeights}
+              loading={savingFile === 'weights'}
               className="mt-2"
             >
-              Save Projects
+              Save Weights
             </LoadingButton>
           </div>
         </div>
-
-        {/* Right Column - Weights JSON */}
-        <div className="bg-white p-4 rounded-md shadow-md space-y-4">
-          <label className="field-label">Weights</label>
-          <JsonEditor
-            data={weightsJson}
-            setData={setWeightsJson}
-            className="json-editor"
-          />
-          <LoadingButton
-            onClick={handleSaveWeights}
-            loading={savingFile === 'weights.json'}
-            className="mt-2"
-          >
-            Save Weights
-          </LoadingButton>
+      ) : (
+        <div className="bg-white p-4 rounded-md shadow-md">
+          <p className="text-gray-600 text-center">
+            No profile selected. Please create one above.
+          </p>
         </div>
-      </div>
+      )}
     </div>
   );
 };
