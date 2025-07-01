@@ -99,12 +99,18 @@ const JobCard = ({ job }) => {
                     {title}
                 </span>
 
-                <span
-                    className={`text-sm font-semibold text-white px-2.5 py-1 rounded shadow ${getRelevanceColor(relevanceScore)}`}
-                    title={`Keywords: ${keywordScore}, Fields: ${fieldScore}`}
-                >
-                    Relevance: {relevanceScore}%
-                </span>
+                <div className="flex flex-col items-end">
+                    <span
+                        className={`text-sm font-semibold text-white px-2.5 py-1 rounded shadow ${getRelevanceColor(relevanceScore)}`}
+                        title={`Keywords: ${keywordScore}, Fields: ${fieldScore}`}
+                    >
+                        Relevance: {relevanceScore}%
+                    </span>
+
+                    <span className="text-xs text-gray-700 mt-0.5">
+                        🔑 {keywordScore} | 📊 {fieldScore}
+                    </span>
+                </div>
             </div>
 
             {/* Relevance Summary */}
