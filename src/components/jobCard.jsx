@@ -108,7 +108,10 @@ const JobCard = ({ job }) => {
                     </span>
 
                     <span className="text-xs text-gray-700 mt-0.5">
-                        🔑 {keywordScore} | 📊 {fieldScore}
+                        Keyword Score {keywordScore}
+                    </span>
+                    <span className="text-xs text-gray-700 mt-0.5">
+                        Field Score {fieldScore}
                     </span>
                 </div>
             </div>
