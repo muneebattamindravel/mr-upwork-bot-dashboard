@@ -35,7 +35,7 @@ const JobsPage = () => {
     const [jobs, setJobs] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showFilters, setShowFilters] = useState(true);
-    const [dateRange, setDateRange] = useState('last24h');
+    const [dateRange, setDateRange] = useState('last3d');
     const [sortBy, setSortBy] = useState('postedDate');
     const [sortOrder, setSortOrder] = useState('desc');
     const [allJobs, setAllJobs] = useState([]);
@@ -51,11 +51,17 @@ const JobsPage = () => {
             case 'last24h':
                 start = subDays(now, 1);
                 break;
+            case 'last3d':
+                start = subDays(now, 3);
+                break;
             case 'last7d':
                 start = subDays(now, 7);
                 break;
             case 'last30d':
                 start = subDays(now, 30);
+                break;
+            case 'all':
+                start = subDays(now, 365 * 20); // effectively "all time"
                 break;
             default:
                 return;
@@ -239,8 +245,10 @@ const JobsPage = () => {
                                 </SelectTrigger>
                                 <SelectContent className="select-content bg-white text-black">
                                     <SelectItem value="last24h">Last 24 Hours</SelectItem>
+                                    <SelectItem value="last3d">Last 3 Days</SelectItem>
                                     <SelectItem value="last7d">Last 7 Days</SelectItem>
                                     <SelectItem value="last30d">Last 30 Days</SelectItem>
+                                    <SelectItem value="all">All Time</SelectItem>
                                     <SelectItem value="custom">Custom Range</SelectItem>
                                 </SelectContent>
                             </Select>
