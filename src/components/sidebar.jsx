@@ -109,7 +109,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
           <div className="fixed top-0 left-0 w-64 h-full bg-gradient-to-b from-purple-700 to-purple-900 text-white p-4 z-50 shadow-lg">
             <div className="flex justify-between items-center mb-6">
               <img
-                src="/mindravel-logo.png"
+                src="/mindravel-logo-for-dark.png"
                 alt="Mindravel Logo"
                 className="w-full max-w-[160px] h-auto object-contain"
               />
