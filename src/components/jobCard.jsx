@@ -122,14 +122,6 @@ const JobCard = ({ job }) => {
                     </div>
                 )}
 
-                <button
-                    onClick={toggleDetails}
-                    className="text-blue-500 hover:underline flex items-center text-xs mt-1"
-                >
-                    Insights {showRelevanceDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                </button>
-
-
                 {topKeywords.length > 0 && (
                     <div className="text-gray-600">Top: {topKeywords.join(', ')}</div>
                 )}
@@ -141,6 +133,13 @@ const JobCard = ({ job }) => {
                         🗂️ Cat: <strong>{Object.values(matchedKeywordBreakdown).reduce((sum, k) => sum + k.catMatches, 0)}</strong>
                     </div>
                 )}
+
+                <button
+                    onClick={toggleDetails}
+                    className="text-blue-500 hover:underline flex items-center text-xs mt-1"
+                >
+                    Insights {showRelevanceDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </button>
 
                 {showRelevanceDetails && (
                     <div className="bg-gray-50 border rounded p-2 mt-1 space-y-2">
