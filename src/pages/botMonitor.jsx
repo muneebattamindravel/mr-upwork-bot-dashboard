@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/card';
 import BotSummaryCard from '@/components/botSummaryCard';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { PlayCircle, PauseCircle } from 'lucide-react';
+import { PlayCircle, PauseCircle, Settings } from 'lucide-react';
 
 const BotMonitor = () => {
   const [bots, setBots] = useState([]);
@@ -162,6 +162,10 @@ const BotMonitor = () => {
                   >
                     {bot.healthStatus}
                   </span>
+
+                  <button onClick={() => openSettings(bot)}>
+                    <Settings className="w-5 h-5 text-gray-600 hover:text-black" />
+                  </button>
                 </div>
 
                 {(bot.healthStatus === 'healthy' || bot.healthStatus === 'stuck') && (
