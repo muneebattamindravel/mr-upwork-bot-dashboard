@@ -283,7 +283,7 @@ const KBManager = () => {
             <div className="bg-white p-4 rounded-md shadow-md">
               <label className="field-label">Keywords</label>
               <Textarea
-                className="textarea-field"
+                className="w-full rounded-md border p-2 min-h-[350px]"
                 value={keywordsText}
                 onChange={(e) => setKeywordsText(e.target.value)}
                 placeholder="Keywords..."
@@ -301,7 +301,7 @@ const KBManager = () => {
             <div className="bg-white p-4 rounded-md shadow-md">
               <label className="field-label">Projects</label>
               <Textarea
-                className="textarea-field"
+                className="w-full rounded-md border p-2 min-h-[350px]"
                 value={projectsText}
                 onChange={(e) => setProjectsText(e.target.value)}
                 placeholder="Projects..."
@@ -322,7 +322,7 @@ const KBManager = () => {
             <JsonEditor
               data={weightsJson}
               setData={setWeightsJson}
-              className="json-editor"
+              className="json-editor text-sm"
             />
             <LoadingButton
               onClick={handleSaveWeights}
