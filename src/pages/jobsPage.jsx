@@ -121,14 +121,18 @@ const JobsPage = () => {
                 }
             });
 
+            console.log('Query sent to backend:', query);
             const response = await getFilteredJobs(query);
             const { jobs: fetchedJobs, totalAll } = response.data.data || {};
+
+            console.log('total jobs fetched ', fetchedJobs.length);
+
             setTotalAllJobs(totalAll || 0);
             setAllJobs(fetchedJobs); // 🟡 Save full list
             sortJobs(fetchedJobs, sortBy); // 🟢 Immediately sort with current criteria
         } catch (err) {
             toast.error('Failed to fetch jobs');
-            console.error('[Fetch Jobs Error]', err);
+            console.error('[Fetch Jobs Error]', err);;
         } finally {
             setLoading(false);
         }
