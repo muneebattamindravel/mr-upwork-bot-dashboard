@@ -11,17 +11,17 @@ export const getBotsSummary = async () => {
 };
 
 export const startBotRemote = async (botId) => {
-  const res = await axios.post(`/bots/${botId}/start`);
+  const res = await axios.post(`/bots/start/${botId}`);
   return res.data;
 };
 
 export const stopBotRemote = async (botId) => {
-  const res = await axios.post(`/bots/${botId}/stop`);
+  const res = await axios.post(`/bots/stop/${botId}`);
   return res.data;
 };
 
 export const checkBotStatus = async (botId) => {
-  const res = await axios.get(`/bots/${botId}/status`, {
+  const res = await axios.get(`/bots/status/${botId}`, {
     timeout: 5000,
   });
 
