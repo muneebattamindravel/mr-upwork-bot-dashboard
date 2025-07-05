@@ -6,6 +6,8 @@ import {
   startBotRemote,
   stopBotRemote,
   checkBotStatus,
+  getBotSettings,
+  updateBotSettings,
 } from '@/apis/bots';
 import { Card } from '@/components/ui/card';
 import BotSummaryCard from '@/components/botSummaryCard';
@@ -17,9 +19,14 @@ const BotMonitor = () => {
   const [bots, setBots] = useState([]);
   const [summary, setSummary] = useState({ total: 0, healthy: 0, stuck: 0, offline: 0 });
   const [loadingMap, setLoadingMap] = useState({});
-  const [agentStatusMap, setAgentStatusMap] = useState({}); // Track agent status per bot
+  const [agentStatusMap, setAgentStatusMap] = useState({});
 
-  // 🔁 Load bots and update their agent status once
+  // Modal state
+  const [showSettings, setShowSettings] = useState(false);
+  const [activeBot, setActiveBot] = useState(null);
+  const [settings, setSettings] = useState(null);
+  const [saving, setSaving] = useState(false);
+
   const loadBots = async () => {
     try {
       const botList = await getBots();
@@ -56,51 +63,15 @@ const BotMonitor = () => {
   };
 
   useEffect(() => {
-    // Initial load: fetch bots and agent statuses
     const init = async () => {
-      try {
-        const botList = await getBots();
-        setBots(botList);
-        setSummary(calculateSummary(botList));
-
-        const newAgentStatusMap = {};
-
-        await Promise.all(
-          botList.map(async (bot) => {
-            try {
-              const status = await checkBotStatus(bot.botId); // returns "running" or "stopped"
-              newAgentStatusMap[bot.botId] = status;
-            } catch {
-              newAgentStatusMap[bot.botId] = 'unreachable';
-              toast.error(`Agent unreachable for "${bot.botId}"`);
-            }
-          })
-        );
-
-        setAgentStatusMap(newAgentStatusMap);
-      } catch (err) {
-        console.error('[Initial loadBots] ❌', err.message);
-        toast.error('Failed to fetch bots');
-      }
+      await loadBots();
     };
 
     init();
 
-    // Periodic bot list refresh only (not agent status)
-    const interval = setInterval(async () => {
-      try {
-        const freshBots = await getBots();
-        setBots(freshBots);
-        setSummary(calculateSummary(freshBots));
-      } catch (err) {
-        console.error('[Interval Refresh] ❌', err.message);
-      }
-    }, 5000);
-
+    const interval = setInterval(loadBots, 5000);
     return () => clearInterval(interval);
   }, []);
-
-
 
   const handleToggle = async (bot) => {
     const botId = bot.botId;
@@ -109,24 +80,52 @@ const BotMonitor = () => {
     setLoadingMap((prev) => ({ ...prev, [botId]: true }));
 
     try {
-      const res = isRunning
-        ? await stopBotRemote(botId)
-        : await startBotRemote(botId);
-
+      const res = isRunning ? await stopBotRemote(botId) : await startBotRemote(botId);
       toast.success(res.message || `Bot ${isRunning ? 'stopped' : 'started'}`);
 
-      // ✅ Immediately fetch updated bot list
-      const freshBots = await getBots();
-      setBots(freshBots);
-      setSummary(calculateSummary(freshBots));
+      await loadBots();
 
-      // ✅ Then update individual agent status for this bot
       const updatedStatus = await checkBotStatus(botId);
       setAgentStatusMap((prev) => ({ ...prev, [botId]: updatedStatus }));
     } catch (err) {
       toast.error(`Failed to ${isRunning ? 'stop' : 'start'} bot`);
     } finally {
       setLoadingMap((prev) => ({ ...prev, [botId]: false }));
+    }
+  };
+
+  const openSettings = async (bot) => {
+    setActiveBot(bot);
+    setShowSettings(true);
+
+    try {
+      const result = await getBotSettings(bot.botId);
+      setSettings({
+        ...result.settings,
+        agentUrl: result.agentUrl || bot.agentUrl || '',
+      });
+    } catch (err) {
+      toast.error('❌ Failed to load bot settings');
+      setShowSettings(false);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    if (!activeBot || !settings) return;
+    setSaving(true);
+
+    try {
+      await updateBotSettings(activeBot.botId, {
+        settings,
+        agentUrl: settings.agentUrl,
+      });
+      toast.success('✅ Settings saved!');
+      setShowSettings(false);
+      await loadBots();
+    } catch (err) {
+      toast.error('❌ Failed to save settings');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -150,22 +149,23 @@ const BotMonitor = () => {
               <Card key={bot.botId} className="p-4 shadow-md">
                 <div className="flex justify-between items-center mb-2">
                   <div className="font-bold text-lg">{bot.botId}</div>
-                  <span
-                    className={cn(
-                      'px-2 py-1 rounded-full text-xs font-medium',
-                      bot.healthStatus === 'offline'
-                        ? 'bg-red-100 text-red-700'
-                        : bot.healthStatus === 'stuck'
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        'px-2 py-1 rounded-full text-xs font-medium',
+                        bot.healthStatus === 'offline'
+                          ? 'bg-red-100 text-red-700'
+                          : bot.healthStatus === 'stuck'
                           ? 'bg-yellow-100 text-yellow-700'
                           : 'bg-green-100 text-green-700'
-                    )}
-                  >
-                    {bot.healthStatus}
-                  </span>
-
-                  <button onClick={() => openSettings(bot)}>
-                    <Settings className="w-5 h-5 text-gray-600 hover:text-black" />
-                  </button>
+                      )}
+                    >
+                      {bot.healthStatus}
+                    </span>
+                    <button onClick={() => openSettings(bot)}>
+                      <Settings className="w-5 h-5 text-gray-600 hover:text-black" />
+                    </button>
+                  </div>
                 </div>
 
                 {(bot.healthStatus === 'healthy' || bot.healthStatus === 'stuck') && (
@@ -179,26 +179,36 @@ const BotMonitor = () => {
                   </>
                 )}
 
-
                 {bot.jobUrl && (
                   <div className="text-sm truncate mb-1">
                     Job: <span className="text-gray-800">{bot.jobUrl}</span>
                   </div>
                 )}
 
-
                 {bot.stats && (
                   <div className="text-xs text-gray-600 mb-2 space-y-1">
-                    <div>📊 Jobs Scraped: <span className="font-semibold">{bot.stats.jobsScraped ?? 0}</span></div>
-
-                    <div>⏱️ Active Time: <span className="font-semibold">
-                      {formatTime(bot.stats.totalActiveTime)}
-                    </span></div>
-
-                    <div>🛡️ Cloudflare Hurdles: <span className="font-semibold">{bot.stats.cloudflareHurdles ?? 0}</span></div>
-                    <div>✅ Cloudflare Solves: <span className="font-semibold">{bot.stats.cloudflareSolves ?? 0}</span></div>
-
-                    <div>🔐 Login Hurdles: <span className="font-semibold">{bot.stats.loginHurdles ?? 0}</span></div>
+                    <div>
+                      📊 Jobs Scraped:{' '}
+                      <span className="font-semibold">{bot.stats.jobsScraped ?? 0}</span>
+                    </div>
+                    <div>
+                      ⏱️ Active Time:{' '}
+                      <span className="font-semibold">
+                        {formatTime(bot.stats.totalActiveTime)}
+                      </span>
+                    </div>
+                    <div>
+                      🛡️ Cloudflare Hurdles:{' '}
+                      <span className="font-semibold">{bot.stats.cloudflareHurdles ?? 0}</span>
+                    </div>
+                    <div>
+                      ✅ Cloudflare Solves:{' '}
+                      <span className="font-semibold">{bot.stats.cloudflareSolves ?? 0}</span>
+                    </div>
+                    <div>
+                      🔐 Login Hurdles:{' '}
+                      <span className="font-semibold">{bot.stats.loginHurdles ?? 0}</span>
+                    </div>
                   </div>
                 )}
 
@@ -211,14 +221,9 @@ const BotMonitor = () => {
                   {!isAgentKnown
                     ? '⌛ Checking...'
                     : isUnreachable
-                      ? '❌ Unreachable'
-                      : agentStatus}
+                    ? '❌ Unreachable'
+                    : agentStatus}
                 </div>
-
-                <div className="text-xs text-gray-500 mb-2">
-                  Agent URL: <span className="text-blue-700">{bot.agentUrl}</span>
-                </div>
-
 
                 <div className="flex justify-end">
                   <button
@@ -232,10 +237,10 @@ const BotMonitor = () => {
                       !isAgentKnown
                         ? 'Checking agent status...'
                         : isUnreachable
-                          ? 'Agent unreachable'
-                          : isRunning
-                            ? 'Stop Bot'
-                            : 'Start Bot'
+                        ? 'Agent unreachable'
+                        : isRunning
+                        ? 'Stop Bot'
+                        : 'Start Bot'
                     }
                   >
                     {isLoading ? (
@@ -252,16 +257,91 @@ const BotMonitor = () => {
           })}
         </div>
       )}
+
+      {/* ✅ Modal */}
+      {showSettings && activeBot && settings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-xl space-y-4 overflow-y-auto max-h-[90vh]">
+            <h2 className="text-xl font-bold mb-2">⚙️ Settings for {activeBot.botId}</h2>
+
+            <div>
+              <label className="block text-sm font-semibold mb-1">Agent URL</label>
+              <input
+                type="text"
+                className="input-field w-full"
+                value={settings.agentUrl}
+                onChange={(e) => setSettings({ ...settings, agentUrl: e.target.value })}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold mb-1">Search Query</label>
+              <input
+                type="text"
+                className="input-field w-full"
+                value={settings.searchQuery}
+                onChange={(e) => setSettings({ ...settings, searchQuery: e.target.value })}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                ['cycleDelayMin', 'cycleDelayMax', 'Cycle Delay (ms)'],
+                ['delayBetweenJobsScrapingMin', 'delayBetweenJobsScrapingMax', 'Delay Between Scrapes (ms)'],
+                ['jobDetailPreScrapeDelayMin', 'jobDetailPreScrapeDelayMax', 'Pre-Scrape Delay (ms)'],
+              ].map(([minKey, maxKey, label]) => (
+                <div key={minKey}>
+                  <label className="block text-sm font-semibold mb-1">{label}</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      className="input-field w-full"
+                      value={settings[minKey]}
+                      onChange={(e) =>
+                        setSettings({ ...settings, [minKey]: Number(e.target.value) })
+                      }
+                    />
+                    <input
+                      type="number"
+                      className="input-field w-full"
+                      value={settings[maxKey]}
+                      onChange={(e) =>
+                        setSettings({ ...settings, [maxKey]: Number(e.target.value) })
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Add other fields as needed */}
+            <div className="flex gap-4">
+              <button
+                className="btn-primary"
+                disabled={saving}
+                onClick={handleSaveSettings}
+              >
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={() => setShowSettings(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 const formatTime = (input, opts = { ago: false }) => {
   if (!input) return 'unknown';
-
   const now = Date.now();
   const time = typeof input === 'number' ? input : new Date(input).getTime();
-  const diff = Math.max(0, opts.ago ? now - time : time); // ⬅ prevent -ve durations
+  const diff = Math.max(0, opts.ago ? now - time : time);
 
   const totalSeconds = Math.floor(diff / 1000);
   const hours = Math.floor(totalSeconds / 3600);
@@ -275,6 +355,5 @@ const formatTime = (input, opts = { ago: false }) => {
 
   return opts.ago ? `${parts.join(' ')} ago` : parts.join(' ');
 };
-
 
 export default BotMonitor;
