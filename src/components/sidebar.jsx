@@ -62,17 +62,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       </NavLink>
 
       <NavLink
-        to="/botSettings"
-        className={({ isActive }) =>
-          `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
-        }
-        onClick={() => setIsOpen(false)}
-      >
-        <Settings className="w-5 h-5" />
-        Bot Settings
-      </NavLink>
-
-      <NavLink
         to="/analytics"
         className={({ isActive }) =>
           `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`

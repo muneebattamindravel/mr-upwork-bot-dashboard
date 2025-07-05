@@ -27,3 +27,18 @@ export const checkBotStatus = async (botId) => {
 
   return res.data.data.status;
 };
+
+export const getBotSettings = async (botId) => {
+  const res = await axios.get(`/bots/settings/${botId}`);
+  return res.data.data; // this matches your `respond` wrapper
+};
+
+export const updateBotSettings = async (botId, data) => {
+  const res = await axios.patch(`/bots/settings/${botId}`, data);
+  return res.data.data;
+};
+
+export const resetBotStats = async (botId) => {
+  const res = await axios.patch(`/bots/reset-stats/${botId}`);
+  return res.data;
+};
