@@ -36,7 +36,7 @@ import {
   toggleProfileEnabled,
 } from '../apis/kb';
 
-const KBManager = () => {
+const StaticKnowledgeBase = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -181,7 +181,12 @@ const KBManager = () => {
   };
 
   useEffect(() => {
-    loadProfiles();
+    const loadProfiles = async () => {
+    const res = await api.getProfiles();
+    setProfiles(res.data.profiles || []);
+  };
+
+  loadProfiles();
   }, []);
 
   return (
@@ -189,7 +194,7 @@ const KBManager = () => {
       {/* Header */}
       <div className="bg-white shadow-md rounded-md p-4 space-y-4">
         <h1 className="text-2xl font-semibold flex items-center gap-2">
-          <BookOpen className="w-6 h-6" /> Knowledge Base Manager
+          <BookOpen className="w-6 h-6" /> Static Knowledge Base Manager
         </h1>
         <div className="flex flex-col md:flex-row items-start md:items-end gap-4">
           <Input
@@ -344,4 +349,4 @@ const KBManager = () => {
   );
 };
 
-export default KBManager;
+export default StaticKnowledgeBase;

@@ -2,7 +2,8 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/login';
-import KBManager from './pages/kbManager';
+import StaticKnowledgeBase from './pages/StaticKnowledgeBase';
+import SemanticKnowledgeBase from './pages/SemanticKnowledgeBase';
 import PrivateRoute from './components/privateRoute';
 import Layout from './components/layout';
 import { Toaster } from 'sonner';
@@ -20,11 +21,22 @@ const App = () => {
           <Route path="/login" element={<Login />} />
 
           <Route
-            path="/kb"
+            path="/static-knowledge-base"
             element={
               <PrivateRoute>
                 <Layout>
-                  <KBManager />
+                  <StaticKnowledgeBase />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/semantic-knowledge-base"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <SemanticKnowledgeBase />
                 </Layout>
               </PrivateRoute>
             }

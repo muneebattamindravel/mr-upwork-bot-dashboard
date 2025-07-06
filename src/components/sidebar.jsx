@@ -29,14 +29,25 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       </NavLink>
 
       <NavLink
-        to="/kb"
+        to="/static-knowledge-base"
         className={({ isActive }) =>
           `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
         }
         onClick={() => setIsOpen(false)}
       >
         <BookOpen className="w-5 h-5" />
-        Knowledge Base
+        Static Knowledge Base
+      </NavLink>
+
+      <NavLink
+        to="/semantic-knowledge-base"
+        className={({ isActive }) =>
+          `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
+        }
+        onClick={() => setIsOpen(false)}
+      >
+        <BookOpen className="w-5 h-5" />
+        Semantic Knowledge Base
       </NavLink>
 
       <NavLink
