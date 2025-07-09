@@ -8,6 +8,16 @@ import { toast } from 'sonner';
 import { Trash2, BookOpen } from 'lucide-react';
 import { JsonEditor } from 'json-edit-react';
 import LoadingButton from '@/components/ui/loading-button';
+
+import {
+  getKBList,
+  createProfile,
+  getProfile,
+  updateProfile,
+  deleteProfile,
+  toggleProfileEnabled,
+} from '../apis/kb';
+
 import {
   Select,
   SelectTrigger,
@@ -27,22 +37,8 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
 
-import {
-  getKBList,
-  createProfile,
-  getProfile,
-  updateProfile,
-  deleteProfile,
-  toggleProfileEnabled,
-} from '../apis/kb';
-
 const StaticKnowledgeBase = () => {
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) navigate('/login');
-  }, [navigate]);
 
   const [profiles, setProfiles] = useState([]);
   const [selectedProfile, setSelectedProfile] = useState(null);
@@ -158,7 +154,7 @@ const StaticKnowledgeBase = () => {
   const handleDeleteProfile = async () => {
     if (!selectedProfile) return;
     try {
-      await deleteProfile(selectedProfile._id); // ✅ pass ID directly, not { id: ... }
+      await deleteProfile(selectedProfile._id);
       toast.success(`Profile "${selectedProfile.profileName}" deleted`);
       await loadProfiles();
     } catch (err) {
@@ -166,7 +162,6 @@ const StaticKnowledgeBase = () => {
       toast.error('Failed to delete profile');
     }
   };
-
 
   const handleToggleEnabled = async (e) => {
     if (!selectedProfile) return;
@@ -181,17 +176,16 @@ const StaticKnowledgeBase = () => {
   };
 
   useEffect(() => {
-    const loadProfiles = async () => {
-    const res = await api.getProfiles();
-    setProfiles(res.data.profiles || []);
-  };
-
-  loadProfiles();
-  }, []);
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+    } else {
+      loadProfiles();
+    }
+  }, [navigate]);
 
   return (
     <div className="p-4 max-w-screen-xl w-full space-y-6 mx-auto">
-      {/* Header */}
       <div className="bg-white shadow-md rounded-md p-4 space-y-4">
         <h1 className="text-2xl font-semibold flex items-center gap-2">
           <BookOpen className="w-6 h-6" /> Static Knowledge Base Manager
@@ -282,9 +276,7 @@ const StaticKnowledgeBase = () => {
 
       {selectedProfile ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column */}
           <div className="space-y-6">
-            {/* Keywords */}
             <div className="bg-white p-4 rounded-md shadow-md">
               <label className="field-label">Keywords</label>
               <Textarea
@@ -302,7 +294,6 @@ const StaticKnowledgeBase = () => {
               </LoadingButton>
             </div>
 
-            {/* Projects */}
             <div className="bg-white p-4 rounded-md shadow-md">
               <label className="field-label">Projects</label>
               <Textarea
@@ -321,7 +312,6 @@ const StaticKnowledgeBase = () => {
             </div>
           </div>
 
-          {/* Right Column */}
           <div className="bg-white p-4 rounded-md shadow-md space-y-4">
             <label className="field-label">Weights</label>
             <JsonEditor

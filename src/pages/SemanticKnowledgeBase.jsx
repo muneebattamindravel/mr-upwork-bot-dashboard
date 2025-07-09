@@ -19,15 +19,12 @@ export default function SemanticKnowledgeBase() {
     const [selectedProfileId, setSelectedProfileId] = useState("");
     const [assistantId, setAssistantId] = useState("");
     const [savingAssistantId, setSavingAssistantId] = useState(false);
-
     const [projects, setProjects] = useState([]);
     const [loadingProfiles, setLoadingProfiles] = useState(false);
     const [loadingProjects, setLoadingProjects] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedProject, setSelectedProject] = useState(null);
-
     const [loadingGenerate, setLoadingGenerate] = useState(false);
-    const [loadingSync, setLoadingSync] = useState(false);
 
     // Load profiles on mount
     useEffect(() => {
@@ -51,13 +48,11 @@ export default function SemanticKnowledgeBase() {
         loadProfiles();
     }, []);
 
-    // Load projects + assistantId when profile changes
+    // Load projects when profile changes
     useEffect(() => {
         if (!selectedProfileId) return;
 
-        const selectedProfile = profiles.find(
-            (p) => p._id === selectedProfileId
-        );
+        const selectedProfile = profiles.find(p => p._id === selectedProfileId);
         if (selectedProfile) {
             setAssistantId(selectedProfile.assistantId || "");
         }
@@ -149,30 +144,13 @@ export default function SemanticKnowledgeBase() {
             await api.generateKB(selectedProfileId);
             toast.success("Knowledge Base file generated.");
 
-            // ✅ ✅ ✅ reload profiles to get the updated kbFileUrl!
             const res = await api.getProfiles();
             setProfiles(res.data.data.profiles || []);
-
         } catch (err) {
             console.error(err);
             toast.error("Failed to generate KB");
         } finally {
             setLoadingGenerate(false);
-        }
-    };
-
-
-    const handleSyncKB = async () => {
-        if (!selectedProfileId) return;
-        try {
-            setLoadingSync(true);
-            await api.syncKB(selectedProfileId);
-            toast.success("Synced to Assistant.");
-        } catch (err) {
-            console.error(err);
-            toast.error("Failed to sync KB");
-        } finally {
-            setLoadingSync(false);
         }
     };
 
@@ -191,16 +169,10 @@ export default function SemanticKnowledgeBase() {
     };
 
     const selectedProfile = profiles.find((p) => p._id === selectedProfileId);
-
     const backendBaseUrl = import.meta.env.VITE_API_URL;
-
     const staticBaseUrl = backendBaseUrl.endsWith('/api')
         ? backendBaseUrl.slice(0, -4)
         : backendBaseUrl;
-
-    const kbFileUrl = selectedProfile?.kbFileUrl
-        ? `${staticBaseUrl}${selectedProfile.kbFileUrl}`
-        : "";
 
     return (
         <div className="space-y-4">
@@ -234,15 +206,15 @@ export default function SemanticKnowledgeBase() {
                             </Select>
                         </div>
 
-                        <div className="flex flex-col md:flex-row md:gap-2 w-full md:w-auto">
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2 w-full md:w-auto">
                             <LoadingButton loading={loadingGenerate} onClick={handleGenerateKB}>
                                 Generate KB
                             </LoadingButton>
-
                             <LoadingButton loading={false} onClick={handleAddOrEdit}>
                                 <Plus className="mr-2 w-4 h-4" /> Add Project
                             </LoadingButton>
                         </div>
+
                     </div>
 
                     <div>
@@ -263,10 +235,10 @@ export default function SemanticKnowledgeBase() {
                         </LoadingButton>
                     </div>
 
-                    {selectedProfile?.kbFileName && (
+                    {selectedProfile?.kbFileUrl && (
                         <div className="flex flex-col gap-2">
                             <a
-                                href={`${staticBaseUrl}/semantic-knowledge-base-files/${selectedProfile.kbFileName}`}
+                                href={`${staticBaseUrl}${selectedProfile.kbFileUrl}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
@@ -275,13 +247,14 @@ export default function SemanticKnowledgeBase() {
                             </a>
 
                             <a
-                                href={`${staticBaseUrl}/semantic-knowledge-base-files/download/${selectedProfile.kbFileName}`}
+                                href={`${staticBaseUrl}/semantic-knowledge-base-files/download/${selectedProfile.kbFileUrl.split("/").pop()}`}
                                 className="inline-flex items-center justify-center rounded-md border border-blue-600 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 shadow-sm hover:bg-blue-100"
                             >
                                 ⬇️ Download KB
                             </a>
                         </div>
                     )}
+
                 </CardContent>
             </Card>
 
