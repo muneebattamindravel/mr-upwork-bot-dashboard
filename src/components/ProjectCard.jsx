@@ -4,8 +4,7 @@ import {
   Trash2,
   Wand2,
   CheckCircle,
-  ChevronDown,
-  ChevronUp,
+  Clipboard,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +19,12 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 export default function ProjectCard({
@@ -30,9 +35,12 @@ export default function ProjectCard({
   onRewrite,
   onApprove,
 }) {
-  const [expanded, setExpanded] = useState(false);
   const [loadingRewrite, setLoadingRewrite] = useState(false);
   const [loadingApprove, setLoadingApprove] = useState(false);
+
+  const [modalContent, setModalContent] = useState("");
+  const [modalTitle, setModalTitle] = useState("");
+  const [showModal, setShowModal] = useState(false);
 
   const handleRewrite = async () => {
     setLoadingRewrite(true);
@@ -48,6 +56,17 @@ export default function ProjectCard({
     setLoadingApprove(false);
   };
 
+  const openModal = (title, content) => {
+    setModalTitle(title);
+    setModalContent(content);
+    setShowModal(true);
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard!");
+  };
+
   return (
     <div className="flex flex-col gap-3 p-6 bg-white border rounded-lg shadow-sm hover:shadow-md transition">
       {/* Top row */}
@@ -60,8 +79,8 @@ export default function ProjectCard({
               proj.status === "approved"
                 ? "success"
                 : proj.status === "rewritten"
-                ? "secondary"
-                : "outline"
+                  ? "secondary"
+                  : "outline"
             }
           >
             {proj.status}
@@ -129,39 +148,58 @@ export default function ProjectCard({
         </div>
       </div>
 
-      {/* Toggle show/hide content */}
-      <div>
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="text-sm text-blue-600 flex items-center gap-1"
+      {/* Content Buttons */}
+      <div className="flex flex-wrap gap-2 mt-2">
+        <Button
+          variant="outline"
+          onClick={() => openModal("Raw Input", proj.rawInput || "N/A")}
         >
-          {expanded ? (
-            <>
-              Hide Details <ChevronUp className="w-4 h-4" />
-            </>
-          ) : (
-            <>
-              Show Details <ChevronDown className="w-4 h-4" />
-            </>
-          )}
-        </button>
+          📄 Raw Input
+        </Button>
+
+        <Button
+          variant="outline"
+          disabled={!proj.semanticOutput}
+          onClick={() =>
+            openModal("Semantic Output", proj.semanticOutput || "N/A")
+          }
+        >
+          🧠 Semantic Output
+        </Button>
+
+        <Button
+          variant="outline"
+          disabled={!proj.portfolioOutput}
+          onClick={() =>
+            openModal("Portfolio Output", proj.portfolioOutput || "N/A")
+          }
+        >
+          📚 Portfolio Output
+        </Button>
       </div>
 
-      {expanded && (
-        <div className="bg-gray-50 p-4 rounded-md space-y-3 text-sm">
-          <div>
-            <strong className="block mb-1 text-gray-700">Raw Input:</strong>
-            <p className="whitespace-pre-line">{proj.rawInput || "N/A"}</p>
+      {/* Modal */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <DialogTitle className="text-lg font-semibold">{modalTitle}</DialogTitle>
+              <button
+                className="text-gray-500 hover:text-gray-800"
+                onClick={() => copyToClipboard(modalContent)}
+                title="Copy to clipboard"
+              >
+                <Clipboard className="w-5 h-5" />
+              </button>
+            </div>
+          </DialogHeader>
+
+
+          <div className="whitespace-pre-wrap text-sm text-gray-800 overflow-y-auto max-h-[70vh]">
+            {modalContent}
           </div>
-          <div>
-            <strong className="block mb-1 text-gray-700">Rewritten:</strong>
-            <p className="whitespace-pre-line">
-              {proj.rewrittenOutput || "N/A"}
-            </p>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-``
