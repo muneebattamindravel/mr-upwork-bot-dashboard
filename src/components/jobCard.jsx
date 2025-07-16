@@ -2,6 +2,13 @@ import React, { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { BadgeCheck, PhoneCall, MapPin, ChevronDown, ChevronUp, X } from 'lucide-react';
 
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+
 const FIELD_LABELS = {
     experienceLevel: '📊 Experience Level',
     pricingModel: '💼 Pricing Model',
@@ -68,6 +75,12 @@ const JobCard = ({ job }) => {
         return 'bg-red-500';
     };
 
+    const getSemanticColor = (score) => {
+        if (score >= 85) return 'bg-indigo-600';
+        if (score >= 70) return 'bg-blue-600';
+        return 'bg-gray-600';
+    };
+
     const postedAgo = formatDistanceToNow(new Date(postedDate), { addSuffix: true });
 
     const topKeywords = Object.entries(matchedKeywordBreakdown)
@@ -86,23 +99,47 @@ const JobCard = ({ job }) => {
     return (
         <div className="bg-white shadow-md border rounded-lg p-4 space-y-3 relative">
             {/* Header */}
-            <div className="flex justify-between items-center flex-wrap">
-                <span className="text-lg font-semibold text-blue-700">
-                    {title}
-                </span>
+            <TooltipProvider>
+                <div className="flex justify-between items-center flex-wrap">
+                    <span className="text-lg font-semibold text-blue-700">
+                        {title}
+                    </span>
 
-                <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <span className="text-gray-700">
-                        🔑 Keyword Score: {keywordScore} | 📊 Field Score: {fieldScore}
-                    </span>
-                    <span
-                        className={`font-semibold text-white px-2.5 py-1 rounded shadow ${getRelevanceColor(relevanceScore)}`}
-                        title={`Keywords: ${keywordScore}, Fields: ${fieldScore}`}
-                    >
-                        Relevance: {relevanceScore}%
-                    </span>
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                        {/* Static Relevance Breakdown with Semantic Tooltip */}
+                        <div className="text-gray-700 flex flex-wrap gap-1 items-center">
+                            🔑 Keyword {keywordScore}% | 📊 Field {fieldScore}% |{" "}
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span className="underline cursor-help text-blue-700 font-medium">
+                                        🤖 Semantic {job.semanticRelevance?.score ?? "N/A"}%
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-sm p-2 text-sm">
+                                    <p className="font-semibold mb-1">🤖 Semantic Relevance</p>
+                                    <p>
+                                        <strong>Verdict:</strong>{" "}
+                                        {job.semanticRelevance?.verdict || "N/A"}
+                                    </p>
+                                    <p>
+                                        <strong>Reason:</strong>{" "}
+                                        {job.semanticRelevance?.reason || "No reason provided."}
+                                    </p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
+
+                        {/* Rule-Based Relevance Score Badge */}
+                        <span
+                            className={`font-semibold text-white px-2.5 py-1 rounded shadow ${getRelevanceColor(relevanceScore)}`}
+                            title="Rule-Based Relevance"
+                        >
+                            Relevance: {relevanceScore}%
+                        </span>
+                    </div>
                 </div>
-            </div>
+            </TooltipProvider>
+
 
             {/* Relevance Summary */}
             <div className="text-xs text-gray-700 space-y-1">
@@ -183,6 +220,13 @@ const JobCard = ({ job }) => {
                                         </div>
                                     );
                                 })}
+                        </div>
+
+                        <div className="bg-indigo-50 border-l-4 border-indigo-500 p-2 rounded text-sm">
+                            <div className="font-semibold text-indigo-700 mb-1">🤖 Semantic Relevance</div>
+                            <p><strong>Score:</strong> {job.semanticRelevance.score}%</p>
+                            <p><strong>Verdict:</strong> {job.semanticRelevance.verdict || 'N/A'}</p>
+                            <p><strong>Reason:</strong> {job.semanticRelevance.reason || 'No reason provided.'}</p>
                         </div>
                     </div>
                 )}
