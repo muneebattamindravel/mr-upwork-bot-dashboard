@@ -28,13 +28,6 @@ export default function SemanticKnowledgeBase() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [loadingGenerate, setLoadingGenerate] = useState(false);
-  const [loadingPortfolio, setLoadingPortfolio] = useState(false);
-
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard!");
-  };
-
 
   useEffect(() => {
     const loadProfiles = async () => {
@@ -159,35 +152,32 @@ export default function SemanticKnowledgeBase() {
     }
   };
 
-  const handleGenerateKB = async () => {
-    if (!selectedProfileId) return;
+  const handleGenerateAndDownloadKB = async () => {
     try {
+      if (!selectedProfileId) return;
+
       setLoadingGenerate(true);
-      await api.generateKB(selectedProfileId);
-      toast.success("Knowledge Base file generated.");
-      const res = await api.getProfiles();
-      setProfiles(res.data.data.profiles || []);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to generate KB");
-    } finally {
+
+      const response = await api.generateAndDownloadKB(selectedProfileId);
+
+      const blob = new Blob([response.data], { type: 'text/markdown' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+
+      link.href = url;
+      link.setAttribute('download', `${selectedProfile.profileName}_Semantic.md`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      toast.success(".md Generated & Downloaded.");
+    } catch (error) {
+      console.error('Error generating/downloading KB:', error);
+      toast.error('Failed to generate and download KB');
       setLoadingGenerate(false);
     }
-  };
-
-  const handleGeneratePortfolio = async () => {
-    if (!selectedProfileId) return;
-    try {
-      setLoadingPortfolio(true);
-      await api.generatePortfolio(selectedProfileId);
-      toast.success("Portfolio PDF generated.");
-      const res = await api.getProfiles();
-      setProfiles(res.data.data.profiles || []);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to generate Portfolio");
-    } finally {
-      setLoadingPortfolio(false);
+    finally {
+      setLoadingGenerate(false);
     }
   };
 
@@ -206,10 +196,6 @@ export default function SemanticKnowledgeBase() {
   };
 
   const selectedProfile = profiles.find((p) => p._id === selectedProfileId);
-  const backendBaseUrl = import.meta.env.VITE_API_URL;
-  const staticBaseUrl = backendBaseUrl.endsWith("/api")
-    ? backendBaseUrl.slice(0, -4)
-    : backendBaseUrl;
 
   return (
     <div className="space-y-6">
@@ -240,12 +226,10 @@ export default function SemanticKnowledgeBase() {
                 </Select>
               </div>
 
-              <LoadingButton loading={loadingGenerate} onClick={handleGenerateKB}>
-                Generate KB
+              <LoadingButton loading={loadingGenerate} onClick={handleGenerateAndDownloadKB}>
+                Generate & Download KB
               </LoadingButton>
-              <LoadingButton loading={loadingPortfolio} onClick={handleGeneratePortfolio}>
-                Generate Portfolio
-              </LoadingButton>
+
               <LoadingButton onClick={handleAddOrEdit}>
                 <Plus className="w-4 h-4 mr-1" /> Add Project
               </LoadingButton>
@@ -280,26 +264,6 @@ export default function SemanticKnowledgeBase() {
               className="w-full focus:outline-none text-sm"
             />
           </div>
-
-          {/* KB Links */}
-          {selectedProfile?.kbFileUrl && (
-            <div className="flex flex-wrap gap-3">
-              <a
-                href={`${staticBaseUrl}${selectedProfile.kbFileUrl}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-              >
-                📄 View KB
-              </a>
-              <a
-                href={`${staticBaseUrl}/semantic-knowledge-base-files/download/${selectedProfile.kbFileUrl.split("/").pop()}`}
-                className="inline-flex items-center rounded-md border border-blue-600 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 shadow-sm hover:bg-blue-100"
-              >
-                ⬇️ Download KB
-              </a>
-            </div>
-          )}
         </CardContent>
       </Card>
 
