@@ -9,7 +9,7 @@ import JobCard from '@/components/jobCard';
 import { getFilteredJobs } from '@/apis/jobs';
 import { subDays, format } from 'date-fns';
 import { RotateCcw } from 'lucide-react';
-import { reprocessJobs, deleteAllJobs } from '../apis/jobs';
+import { reprocessJobsStaticOnly, deleteAllJobs } from '../apis/jobs';
 import { Loader2 } from 'lucide-react';;;
 
 const defaultFilters = {
@@ -99,7 +99,7 @@ const JobsPage = () => {
     const handleReprocess = async () => {
         try {
             setReprocessing(true);
-            const res = await reprocessJobs();
+            const res = await reprocessJobsStaticOnly();
             toast.success(res.data.message || 'Jobs reprocessed');
             await fetchJobs(); // refresh job list after re-scoring
         } catch (err) {

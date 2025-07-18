@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { BadgeCheck, PhoneCall, MapPin, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { BadgeCheck, PhoneCall, MapPin, ChevronDown, ChevronUp, X, RotateCcw } from 'lucide-react';
+import { reprocessSingleJob, generateProposal } from '../apis/jobs'
+import { toast } from "sonner";
 
 import {
     Tooltip,
@@ -68,6 +70,7 @@ const JobCard = ({ job }) => {
 
     const [showRelevanceDetails, setShowRelevanceDetails] = useState(false);
     const [showDescription, setShowDescription] = useState(false);
+    const [showProposal, setShowProposal] = useState(false);
 
     const getRelevanceColor = (score) => {
         if (score >= 80) return 'bg-green-600';
@@ -75,10 +78,46 @@ const JobCard = ({ job }) => {
         return 'bg-red-500';
     };
 
-    const getSemanticColor = (score) => {
-        if (score >= 85) return 'bg-indigo-600';
-        if (score >= 70) return 'bg-blue-600';
-        return 'bg-gray-600';
+    const [reprocessing, setReprocessing] = useState(false);
+
+    const handleReprocess = async () => {
+        setReprocessing(true);
+        const loadingToast = toast.loading('Reprocessing...');
+        try {
+            ``
+            await reprocessSingleJob(job._id);
+            toast.success('Reprocessed successfully');
+
+            if (typeof window !== 'undefined') {
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000); // ⏱ 1 second delay
+            }
+
+        } catch (error) {
+            toast.error('Failed to reprocess job');
+            console.error(error);
+        } finally {
+            setReprocessing(false);
+            toast.dismiss(loadingToast);
+        }
+    };
+
+    const [loadingProposal, setLoadingProposal] = useState(false);
+    const [proposalType, setProposalType] = useState('short');
+
+    const handleGenerateProposal = async () => {
+        try {
+            setLoadingProposal(true);
+            const response = await generateProposal(job._id, proposalType);
+            toast.success("Proposal generated!");
+            job.semanticRelevance.proposal = response; // update locally
+            setShowProposal(true); // show modal immediately
+        } catch (err) {
+            toast.error("Failed to generate proposal");
+        } finally {
+            setLoadingProposal(false);
+        }
     };
 
     const postedAgo = formatDistanceToNow(new Date(postedDate), { addSuffix: true });
@@ -136,6 +175,41 @@ const JobCard = ({ job }) => {
                         >
                             Relevance: {relevanceScore}%
                         </span>
+
+                        {/* Reprocess button */}
+                        <button
+                            onClick={handleReprocess}
+                            disabled={reprocessing}
+                            className="ml-2 p-1 border rounded hover:bg-gray-100 transition flex items-center justify-center"
+                            title="Reprocess this job"
+                        >
+                            {reprocessing ? (
+                                <svg
+                                    className="animate-spin h-4 w-4 text-blue-600"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                    ></circle>
+                                    <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8v8H4z"
+                                    ></path>
+                                </svg>
+                            ) : (
+                                <RotateCcw className="h-4 w-4 text-blue-600" />
+                            )}
+                        </button>
+
+
                     </div>
                 </div>
             </TooltipProvider>
@@ -281,6 +355,7 @@ const JobCard = ({ job }) => {
                 📄 View Description
             </button>
 
+
             {/* Description Modal */}
             {showDescription && (
                 <div
@@ -302,7 +377,82 @@ const JobCard = ({ job }) => {
                     </div>
                 </div>
             )}
+
+            {showProposal && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+                    onClick={() => setShowProposal(false)}
+                >
+                    <div
+                        className="bg-white rounded-lg p-6 max-w-2xl max-h-[80vh] overflow-y-auto relative"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Close Button */}
+                        <button
+                            onClick={() => setShowProposal(false)}
+                            className="absolute top-2 right-2 text-gray-500 hover:text-gray-800"
+                        >
+                            <X size={18} />
+                        </button>
+
+                        {/* Modal Heading with Copy Button */}
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-lg font-semibold">Generated Proposal</h2>
+                            <button
+                                onClick={() => {
+                                    navigator.clipboard.writeText(job.semanticRelevance?.proposal || '');
+                                    toast.success('Proposal copied to clipboard!');
+                                }}
+                                title="Copy to Clipboard"
+                                className="text-gray-600 hover:text-gray-900 transition text-lg"
+                            >
+                                📋
+                            </button>
+                        </div>
+
+                        {/* Proposal Text */}
+                        <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                            {job.semanticRelevance?.proposal}
+                        </p>
+                    </div>
+                </div>
+            )}
+
+
+
+            <div className="flex gap-2 items-center">
+                <select
+                    value={proposalType}
+                    onChange={(e) => setProposalType(e.target.value)}
+                    className="text-sm border rounded px-2 py-1"
+                >
+                    <option value="short">Short</option>
+                    <option value="medium">Medium</option>
+                    <option value="detailed">Detailed</option>
+                </select>
+
+                <button
+                    onClick={handleGenerateProposal}
+                    disabled={loadingProposal}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-sm"
+                >
+                    {loadingProposal ? '⏳ Generating...' : '✍️ Generate Proposal'}
+                </button>
+
+                {job.semanticRelevance?.proposal && (
+                    <button
+                        onClick={() => setShowProposal(true)}
+                        className="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded text-sm"
+                    >
+                        📄 View Proposal
+                    </button>
+                )}
+            </div>
+
         </div>
+
+
+
     );
 };
 
