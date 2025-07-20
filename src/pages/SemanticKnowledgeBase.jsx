@@ -80,12 +80,14 @@ export default function SemanticKnowledgeBase() {
     if (!searchQuery.trim()) {
       setFilteredProjects(projects);
     } else {
+      const query = searchQuery.toLowerCase();
       const filtered = projects.filter((p) =>
-        p.rawInput.toLowerCase().includes(searchQuery.toLowerCase())
+        (p.title?.toLowerCase().includes(query) || p.rawInput?.toLowerCase().includes(query))
       );
       setFilteredProjects(filtered);
     }
   }, [searchQuery, projects]);
+
 
   const handleAddOrEdit = () => {
     setSelectedProject(null);
