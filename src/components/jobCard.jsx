@@ -237,14 +237,6 @@ const JobCard = ({ job }) => {
                     <div className="text-gray-600">Top: {topKeywords.join(', ')}</div>
                 )}
 
-                {Object.keys(matchedKeywordBreakdown).length > 0 && (
-                    <div className="text-gray-600">
-                        Total Hits — 🔠 Title: <strong>{Object.values(matchedKeywordBreakdown).reduce((sum, k) => sum + k.titleMatches, 0)}</strong>,
-                        📄 Desc: <strong>{Object.values(matchedKeywordBreakdown).reduce((sum, k) => sum + k.descMatches, 0)}</strong>,
-                        🗂️ Cat: <strong>{Object.values(matchedKeywordBreakdown).reduce((sum, k) => sum + k.catMatches, 0)}</strong>
-                    </div>
-                )}
-
                 <button
                     onClick={toggleDetails}
                     className="text-blue-500 hover:underline flex items-center text-xs mt-1"
