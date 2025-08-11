@@ -11,6 +11,7 @@ import JobsPage from './pages/jobsPage';
 import BotMonitor from './pages/botMonitor';
 import RelevanceSettings from './pages/relevanceSettings';
 import NotFound from './pages/notFound';
+import GlobalSettings from './pages/GlobalSettings';
 
 const App = () => {
   return (
@@ -70,6 +71,17 @@ const App = () => {
               <PrivateRoute>
                 <Layout>
                   <RelevanceSettings />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/globalSettings"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <GlobalSettings />
                 </Layout>
               </PrivateRoute>
             }

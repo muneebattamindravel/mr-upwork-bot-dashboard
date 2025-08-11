@@ -158,6 +158,28 @@ const RelevanceSettings = () => {
             <Switch checked={settings.capScoreAt100} onCheckedChange={handleSwitch('capScoreAt100')} />
           </div>
 
+          <div className="flex justify-between items-center">
+            <Label className="field-label">🧠 Use Semantic Search For Jobs?</Label>
+            <Switch
+              checked={settings.useSemanticSearch}
+              onCheckedChange={handleSwitch('useSemanticSearch')}
+            />
+          </div>
+
+          <div>
+            <Label className="field-label">🎚️ Semantic Search Minimum Required Static Score</Label>
+            <input
+              type="number"
+              className="input-field w-24"
+              min={0}
+              max={100}
+              value={settings.semanticMinStaticScore ?? 0}
+              onChange={(e) =>
+                handleSettingChange('semanticMinStaticScore', Number(e.target.value))
+              }
+            />
+          </div>
+
           <LoadingButton
             loading={loading}
             className="btn-primary btn-full mt-4"
@@ -165,7 +187,9 @@ const RelevanceSettings = () => {
           >
             Save Changes
           </LoadingButton>
+
         </div>
+
       ) : (
         <div className="p-4 bg-white rounded shadow text-gray-600">
           {profileList.length === 0

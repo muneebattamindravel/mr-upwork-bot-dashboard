@@ -29,3 +29,7 @@ export const generateProposal = async (jobId, type) => {
 export const deleteAllJobs = async () => {
   return await axios.delete('/jobs');
 };
+
+export const getJobById = (id) => {
+  return axios.get(`/jobs/${id}`);
+};

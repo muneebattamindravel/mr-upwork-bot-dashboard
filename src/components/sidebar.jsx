@@ -73,14 +73,14 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       </NavLink>
 
       <NavLink
-        to="/analytics"
+        to="/globalSettings"
         className={({ isActive }) =>
           `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
         }
         onClick={() => setIsOpen(false)}
       >
         <BarChart className="w-5 h-5" />
-        Analytics
+        Global Settings
       </NavLink>
     </nav>
   );

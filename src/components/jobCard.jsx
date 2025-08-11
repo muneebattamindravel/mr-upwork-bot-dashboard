@@ -83,15 +83,16 @@ const JobCard = ({ job }) => {
     const handleReprocess = async () => {
         setReprocessing(true);
         const loadingToast = toast.loading('Reprocessing...');
-        try {
-            ``
-            await reprocessSingleJob(job._id);
-            toast.success('Reprocessed successfully');
 
-            if (typeof window !== 'undefined') {
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000); // ⏱ 1 second delay
+        try {
+            const response = await reprocessSingleJob(job._id);
+            const updatedJob = response?.data?.data;
+
+            if (updatedJob) {
+                Object.assign(job, updatedJob); // shallow update for immediate UI reflection
+                toast.success('Reprocessed successfully');
+            } else {
+                toast.error('Reprocess done but no job returned');
             }
 
         } catch (error) {
@@ -102,6 +103,7 @@ const JobCard = ({ job }) => {
             toast.dismiss(loadingToast);
         }
     };
+
 
     const [loadingProposal, setLoadingProposal] = useState(false);
     const [proposalType, setProposalType] = useState('short');
