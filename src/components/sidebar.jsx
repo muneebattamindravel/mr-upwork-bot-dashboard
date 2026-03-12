@@ -9,6 +9,8 @@ import {
   Monitor,
   Sliders,
   X,
+  Brain,
+  FlaskConical,
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
@@ -82,6 +84,28 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       >
         <BarChart2 className="w-5 h-5" />
         Analytics
+      </NavLink>
+
+      <NavLink
+        to="/sraa-settings"
+        className={({ isActive }) =>
+          `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
+        }
+        onClick={() => setIsOpen(false)}
+      >
+        <Brain className="w-5 h-5" />
+        SRAA Settings
+      </NavLink>
+
+      <NavLink
+        to="/playground"
+        className={({ isActive }) =>
+          `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
+        }
+        onClick={() => setIsOpen(false)}
+      >
+        <FlaskConical className="w-5 h-5" />
+        BD Playground
       </NavLink>
 
       <NavLink

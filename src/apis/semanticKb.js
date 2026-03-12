@@ -15,6 +15,7 @@ const api = {
 
   generatePortfolio: (profileId) => axios.post('/semantic-knowledge-base/generate-portfolio', { profileId }),
   saveAssistantId: (profileId, assistantId) => axios.post('/semantic-knowledge-base/save-assistant-id', { profileId, assistantId }),
+  embedAll: () => axios.post('/projects/embed-all'),
 };
 
 export default api;

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import LoadingButton from "@/components/ui/loading-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Plus, Search, Clipboard } from "lucide-react";
+import { Loader2, Plus, Search, Zap } from "lucide-react";
 import { toast } from "sonner";
 import {
   Select,
@@ -17,8 +17,6 @@ import ProjectCard from "../components/ProjectCard";
 export default function SemanticKnowledgeBase() {
   const [profiles, setProfiles] = useState([]);
   const [selectedProfileId, setSelectedProfileId] = useState("");
-  const [assistantId, setAssistantId] = useState("");
-  const [savingAssistantId, setSavingAssistantId] = useState(false);
   const [projects, setProjects] = useState([]);
   const [filteredProjects, setFilteredProjects] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -27,7 +25,7 @@ export default function SemanticKnowledgeBase() {
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
-  const [loadingGenerate, setLoadingGenerate] = useState(false);
+  const [embeddingAll, setEmbeddingAll] = useState(false);
 
   useEffect(() => {
     const loadProfiles = async () => {
@@ -38,7 +36,6 @@ export default function SemanticKnowledgeBase() {
         setProfiles(all);
         if (all.length > 0) {
           setSelectedProfileId(all[0]._id);
-          setAssistantId(all[0].assistantId || "");
         }
       } catch (err) {
         console.error(err);
@@ -52,12 +49,6 @@ export default function SemanticKnowledgeBase() {
 
   useEffect(() => {
     if (!selectedProfileId) return;
-
-    const selectedProfile = profiles.find((p) => p._id === selectedProfileId);
-    if (selectedProfile) {
-      setAssistantId(selectedProfile.assistantId || "");
-    }
-
     const loadProjects = async () => {
       try {
         setLoadingProjects(true);
@@ -72,23 +63,22 @@ export default function SemanticKnowledgeBase() {
         setLoadingProjects(false);
       }
     };
-
     loadProjects();
-  }, [selectedProfileId, profiles]);
+  }, [selectedProfileId]);
 
   useEffect(() => {
     if (!searchQuery.trim()) {
       setFilteredProjects(projects);
     } else {
       const query = searchQuery.toLowerCase();
-      const filtered = projects.filter((p) =>
-        p.title?.toLowerCase().includes(query)
-      );
-      setFilteredProjects(filtered);
+      setFilteredProjects(projects.filter(p => p.title?.toLowerCase().includes(query)));
     }
   }, [searchQuery, projects]);
 
-
+  const refreshProjects = async () => {
+    const res = await api.listProjects(selectedProfileId);
+    setProjects(res.data.data || []);
+  };
 
   const handleAddOrEdit = () => {
     setSelectedProject(null);
@@ -104,8 +94,7 @@ export default function SemanticKnowledgeBase() {
         await api.createProject({ ...data, profileId: selectedProfileId });
         toast.success("Project created");
       }
-      const res = await api.listProjects(selectedProfileId);
-      setProjects(res.data.data || []);
+      await refreshProjects();
     } catch (err) {
       console.error(err);
       toast.error("Failed to save project");
@@ -123,8 +112,7 @@ export default function SemanticKnowledgeBase() {
     try {
       await api.deleteProject(projId);
       toast.success("Project deleted");
-      const res = await api.listProjects(selectedProfileId);
-      setProjects(res.data.data || []);
+      await refreshProjects();
     } catch (err) {
       console.error(err);
       toast.error("Failed to delete project");
@@ -135,8 +123,7 @@ export default function SemanticKnowledgeBase() {
     try {
       await api.rewriteProject(projId);
       toast.success("Project rewritten");
-      const res = await api.listProjects(selectedProfileId);
-      setProjects(res.data.data || []);
+      await refreshProjects();
     } catch (err) {
       console.error(err);
       toast.error("Failed to rewrite project");
@@ -146,114 +133,93 @@ export default function SemanticKnowledgeBase() {
   const handleApprove = async (projId) => {
     try {
       await api.approveProject(projId);
-      toast.success("Project approved");
-      const res = await api.listProjects(selectedProfileId);
-      setProjects(res.data.data || []);
+      toast.success("Project approved & embedding generated ✅");
+      await refreshProjects();
     } catch (err) {
       console.error(err);
       toast.error("Failed to approve project");
     }
   };
 
-  const handleGenerateAndDownloadKB = async () => {
+  const handleEmbedAll = async () => {
     try {
-      if (!selectedProfileId) return;
-
-      setLoadingGenerate(true);
-
-      const response = await api.generateAndDownloadKB(selectedProfileId);
-
-      const blob = new Blob([response.data], { type: 'text/markdown' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-
-      link.href = url;
-      link.setAttribute('download', `${selectedProfile.profileName}_Semantic.md`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      toast.success(".md Generated & Downloaded.");
-    } catch (error) {
-      console.error('Error generating/downloading KB:', error);
-      toast.error('Failed to generate and download KB');
-      setLoadingGenerate(false);
-    }
-    finally {
-      setLoadingGenerate(false);
-    }
-  };
-
-  const handleSaveAssistantId = async () => {
-    if (!selectedProfileId) return;
-    try {
-      setSavingAssistantId(true);
-      await api.saveAssistantId(selectedProfileId, assistantId);
-      toast.success("Assistant ID saved.");
+      setEmbeddingAll(true);
+      const res = await api.embedAll();
+      const { embedded, total, errors } = res.data.data;
+      toast.success(`Embedded ${embedded} of ${total} projects`);
+      if (errors?.length) {
+        console.warn('[embedAll] errors:', errors);
+      }
+      await refreshProjects();
     } catch (err) {
       console.error(err);
-      toast.error("Failed to save Assistant ID");
+      toast.error("Embed All failed");
     } finally {
-      setSavingAssistantId(false);
+      setEmbeddingAll(false);
     }
   };
 
-  const selectedProfile = profiles.find((p) => p._id === selectedProfileId);
+  // Embedding stats
+  const approvedProjects = projects.filter(p => p.status === 'approved');
+  const embeddedCount = approvedProjects.filter(p => p.semanticEmbedding?.length > 0).length;
+  const needsEmbedding = approvedProjects.length - embeddedCount;
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Semantic Knowledge Base</CardTitle>
+          <CardTitle className="flex items-center justify-between flex-wrap gap-2">
+            <span>Semantic Knowledge Base</span>
+            {/* Embedding status badge */}
+            {approvedProjects.length > 0 && (
+              <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                needsEmbedding === 0
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-yellow-100 text-yellow-700'
+              }`}>
+                {embeddedCount}/{approvedProjects.length} embedded
+                {needsEmbedding > 0 && ` · ${needsEmbedding} pending`}
+              </span>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           {/* Top Actions */}
-          <div className="flex flex-col md:flex-row md:items-end md:gap-4 gap-4">
-            <div className="flex flex-col md:flex-row md:items-center gap-4 flex-1">
-              <div className="w-full md:w-64">
-                <label className="font-medium block mb-1">Select Profile</label>
-                <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a profile" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border border-gray-200 shadow-md rounded-md">
-                    {loadingProfiles && (
-                      <div className="p-2 text-gray-500 text-sm">Loading...</div>
-                    )}
-                    {profiles.map((p) => (
-                      <SelectItem key={p._id} value={p._id}>
-                        {p.profileName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <LoadingButton loading={loadingGenerate} onClick={handleGenerateAndDownloadKB}>
-                Generate & Download KB
-              </LoadingButton>
-
-              <LoadingButton onClick={handleAddOrEdit}>
-                <Plus className="w-4 h-4 mr-1" /> Add Project
-              </LoadingButton>
+          <div className="flex flex-col md:flex-row md:items-end md:gap-4 gap-4 flex-wrap">
+            <div className="w-full md:w-64">
+              <label className="font-medium block mb-1">Select Profile</label>
+              <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a profile" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border border-gray-200 shadow-md rounded-md">
+                  {loadingProfiles && (
+                    <div className="p-2 text-gray-500 text-sm">Loading...</div>
+                  )}
+                  {profiles.map((p) => (
+                    <SelectItem key={p._id} value={p._id}>
+                      {p.profileName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </div>
 
-          {/* Assistant ID */}
-          <div className="flex flex-col md:flex-row md:items-end md:gap-4 gap-2">
-            <input
-              className="border border-gray-300 rounded-md px-3 py-2 w-full md:w-80 text-sm"
-              type="text"
-              value={assistantId}
-              onChange={(e) => setAssistantId(e.target.value)}
-              placeholder="OpenAI Assistant ID..."
-            />
-            <LoadingButton
-              loading={savingAssistantId}
-              onClick={handleSaveAssistantId}
-            >
-              Save Assistant ID
+            <LoadingButton onClick={handleAddOrEdit}>
+              <Plus className="w-4 h-4 mr-1" /> Add Project
             </LoadingButton>
+
+            {/* Embed All button — only shown when approved projects need embedding */}
+            {needsEmbedding > 0 && (
+              <LoadingButton
+                loading={embeddingAll}
+                onClick={handleEmbedAll}
+                className="bg-amber-500 hover:bg-amber-600 text-white"
+              >
+                <Zap className="w-4 h-4 mr-1" />
+                Embed All ({needsEmbedding} pending)
+              </LoadingButton>
+            )}
           </div>
 
           {/* Search Bar */}

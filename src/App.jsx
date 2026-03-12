@@ -13,6 +13,8 @@ import RelevanceSettings from './pages/relevanceSettings';
 import NotFound from './pages/notFound';
 import GlobalSettings from './pages/GlobalSettings';
 import AnalyticsPage from './pages/analyticsPage';
+import SRAASettings from './pages/SRAASettings';
+import Playground from './pages/Playground';
 
 const App = () => {
   return (
@@ -94,6 +96,28 @@ const App = () => {
               <PrivateRoute>
                 <Layout>
                   <AnalyticsPage />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/sraa-settings"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <SRAASettings />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/playground"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <Playground />
                 </Layout>
               </PrivateRoute>
             }
