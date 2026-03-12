@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   BookOpen,
   BarChart,
+  BarChart2,
   Briefcase,
   Settings,
   Monitor,
@@ -70,6 +71,17 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       >
         <Monitor className="w-5 h-5" />
         Bot Monitor
+      </NavLink>
+
+      <NavLink
+        to="/analytics"
+        className={({ isActive }) =>
+          `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
+        }
+        onClick={() => setIsOpen(false)}
+      >
+        <BarChart2 className="w-5 h-5" />
+        Analytics
       </NavLink>
 
       <NavLink

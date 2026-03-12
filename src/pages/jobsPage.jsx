@@ -8,7 +8,7 @@ import LoadingButton from '@/components/ui/loading-button';
 import JobCard from '@/components/jobCard';
 import { getFilteredJobs } from '@/apis/jobs';
 import { subDays, format } from 'date-fns';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Download } from 'lucide-react';
 import { reprocessJobsStaticOnly, deleteAllJobs } from '../apis/jobs';
 import { Loader2 } from 'lucide-react';
 
@@ -172,6 +172,32 @@ const JobsPage = () => {
         setSortBy('postedDate');
         setSortOrder('desc');
         fetchJobs(cleared, 'postedDate', 'desc');
+    };
+
+    const exportToCSV = () => {
+        if (!jobs.length) return toast.error('No jobs to export');
+        const headers = ['Title', 'URL', 'Category', 'Posted Date', 'Pricing', 'Min Budget', 'Max Budget', 'Country', 'Client Spend', 'Relevance Score', 'Semantic Verdict'];
+        const rows = jobs.map(job => [
+            `"${(job.title || '').replace(/"/g, '""')}"`,
+            job.url || '',
+            `"${(job.mainCategory || '').replace(/"/g, '""')}"`,
+            job.postedDate ? format(new Date(job.postedDate), 'yyyy-MM-dd') : '',
+            job.pricingModel || '',
+            job.minRange || 0,
+            job.maxRange || 0,
+            job.clientCountry || '',
+            job.clientSpend || 0,
+            job.relevance?.relevanceScore || 0,
+            job.semanticRelevance?.verdict || ''
+        ]);
+        const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `jobs-export-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+        toast.success(`Exported ${jobs.length} jobs as CSV`);
     };
 
     const renderOperatorSelect = (name, currentValue) => (
@@ -411,6 +437,16 @@ const JobsPage = () => {
                     title="Refresh Job Feed"
                 >
                     <RotateCcw className="w-4 h-4 text-purple-700" />
+                </button>
+
+                <button
+                    onClick={exportToCSV}
+                    disabled={!jobs.length}
+                    className="flex items-center gap-1.5 rounded px-3 py-1.5 border text-sm transition hover:bg-gray-100 disabled:opacity-40"
+                    title="Export to CSV"
+                >
+                    <Download className="w-4 h-4 text-green-700" />
+                    Export CSV
                 </button>
             </div>
 

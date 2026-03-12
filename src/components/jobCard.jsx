@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { BadgeCheck, PhoneCall, MapPin, ChevronDown, ChevronUp, X, RotateCcw } from 'lucide-react';
+import { BadgeCheck, PhoneCall, MapPin, ChevronDown, ChevronUp, X, RotateCcw, Copy, RefreshCw } from 'lucide-react';
 import { reprocessSingleJob, generateProposal } from '../apis/jobs'
 import { toast } from "sonner";
 
@@ -71,6 +71,7 @@ const JobCard = ({ job }) => {
     const [showRelevanceDetails, setShowRelevanceDetails] = useState(false);
     const [showDescription, setShowDescription] = useState(false);
     const [showProposal, setShowProposal] = useState(false);
+    const [proposalText, setProposalText] = useState(job.semanticRelevance?.proposal || '');
 
     const getRelevanceColor = (score) => {
         if (score >= 80) return 'bg-green-600';
@@ -108,18 +109,25 @@ const JobCard = ({ job }) => {
     const [loadingProposal, setLoadingProposal] = useState(false);
     const [proposalType, setProposalType] = useState('short');
 
-    const handleGenerateProposal = async () => {
+    const handleGenerateProposal = async (openModalAfter = true) => {
         try {
             setLoadingProposal(true);
             const response = await generateProposal(job._id, proposalType);
-            toast.success("Proposal generated!");
-            job.semanticRelevance.proposal = response; // update locally
-            setShowProposal(true); // show modal immediately
+            job.semanticRelevance = job.semanticRelevance || {};
+            job.semanticRelevance.proposal = response;
+            setProposalText(response);
+            toast.success('Proposal generated!');
+            if (openModalAfter) setShowProposal(true);
         } catch (err) {
-            toast.error("Failed to generate proposal");
+            toast.error('Failed to generate proposal');
         } finally {
             setLoadingProposal(false);
         }
+    };
+
+    const handleCopyProposal = () => {
+        navigator.clipboard.writeText(proposalText);
+        toast.success('Copied to clipboard!');
     };
 
     const postedAgo = formatDistanceToNow(new Date(postedDate), { addSuffix: true });
@@ -378,36 +386,58 @@ const JobCard = ({ job }) => {
                     onClick={() => setShowProposal(false)}
                 >
                     <div
-                        className="bg-white rounded-lg p-6 max-w-2xl max-h-[80vh] overflow-y-auto relative"
-                        onClick={(e) => e.stopPropagation()}
+                        className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] flex flex-col relative"
+                        onClick={e => e.stopPropagation()}
                     >
-                        {/* Close Button */}
-                        <button
-                            onClick={() => setShowProposal(false)}
-                            className="absolute top-2 right-2 text-gray-500 hover:text-gray-800"
-                        >
+                        <button onClick={() => setShowProposal(false)} className="absolute top-2 right-2 text-gray-500 hover:text-gray-800">
                             <X size={18} />
                         </button>
 
-                        {/* Modal Heading with Copy Button */}
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-semibold">Generated Proposal</h2>
-                            <button
-                                onClick={() => {
-                                    navigator.clipboard.writeText(job.semanticRelevance?.proposal || '');
-                                    toast.success('Proposal copied to clipboard!');
-                                }}
-                                title="Copy to Clipboard"
-                                className="text-gray-600 hover:text-gray-900 transition text-lg"
-                            >
-                                📋
-                            </button>
-                        </div>
+                        <h2 className="text-lg font-semibold mb-3">✍️ Generated Proposal</h2>
 
-                        {/* Proposal Text */}
-                        <p className="text-sm text-gray-800 whitespace-pre-wrap">
-                            {job.semanticRelevance?.proposal}
-                        </p>
+                        {/* Editable Proposal Textarea */}
+                        <textarea
+                            className="w-full border rounded-md p-3 text-sm text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400 min-h-[320px] flex-1"
+                            value={proposalText}
+                            onChange={e => setProposalText(e.target.value)}
+                            placeholder="Proposal will appear here..."
+                        />
+
+                        {/* Actions Row */}
+                        <div className="flex flex-wrap items-center gap-2 mt-4">
+                            <select
+                                value={proposalType}
+                                onChange={e => setProposalType(e.target.value)}
+                                className="text-sm border rounded px-2 py-1.5"
+                            >
+                                <option value="short">Short</option>
+                                <option value="medium">Medium</option>
+                                <option value="detailed">Detailed</option>
+                            </select>
+
+                            <button
+                                onClick={() => handleGenerateProposal(false)}
+                                disabled={loadingProposal}
+                                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded text-sm disabled:opacity-50"
+                            >
+                                {loadingProposal ? (
+                                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                    </svg>
+                                ) : <RefreshCw size={14} />}
+                                {loadingProposal ? 'Generating...' : 'Regenerate'}
+                            </button>
+
+                            <button
+                                onClick={handleCopyProposal}
+                                className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-sm"
+                            >
+                                <Copy size={14} /> Copy
+                            </button>
+
+                            <span className="text-xs text-gray-400 ml-auto">{proposalText.length} chars · editable</span>
+                        </div>
                     </div>
                 </div>
             )}
@@ -426,19 +456,19 @@ const JobCard = ({ job }) => {
                 </select>
 
                 <button
-                    onClick={handleGenerateProposal}
+                    onClick={() => handleGenerateProposal(true)}
                     disabled={loadingProposal}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-sm"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-sm disabled:opacity-50"
                 >
                     {loadingProposal ? '⏳ Generating...' : '✍️ Generate Proposal'}
                 </button>
 
-                {job.semanticRelevance?.proposal && (
+                {proposalText && (
                     <button
                         onClick={() => setShowProposal(true)}
                         className="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded text-sm"
                     >
-                        📄 View Proposal
+                        📄 View / Edit Proposal
                     </button>
                 )}
             </div>

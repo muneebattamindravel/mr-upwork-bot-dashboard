@@ -12,6 +12,7 @@ import BotMonitor from './pages/botMonitor';
 import RelevanceSettings from './pages/relevanceSettings';
 import NotFound from './pages/notFound';
 import GlobalSettings from './pages/GlobalSettings';
+import AnalyticsPage from './pages/analyticsPage';
 
 const App = () => {
   return (
@@ -82,6 +83,17 @@ const App = () => {
               <PrivateRoute>
                 <Layout>
                   <GlobalSettings />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/analytics"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <AnalyticsPage />
                 </Layout>
               </PrivateRoute>
             }
