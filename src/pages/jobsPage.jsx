@@ -10,7 +10,7 @@ import { getFilteredJobs } from '@/apis/jobs';
 import { subDays, format } from 'date-fns';
 import { RotateCcw } from 'lucide-react';
 import { reprocessJobsStaticOnly, deleteAllJobs } from '../apis/jobs';
-import { Loader2 } from 'lucide-react';;;
+import { Loader2 } from 'lucide-react';
 
 const defaultFilters = {
     keyword: '',
@@ -38,9 +38,9 @@ const JobsPage = () => {
     const [dateRange, setDateRange] = useState('last3d');
     const [sortBy, setSortBy] = useState('postedDate');
     const [sortOrder, setSortOrder] = useState('desc');
-    const [allJobs, setAllJobs] = useState([]);
     const [deleting, setDeleting] = useState(false);
     const [totalAllJobs, setTotalAllJobs] = useState(0);
+    const [totalFiltered, setTotalFiltered] = useState(0);
     const [reprocessing, setReprocessing] = useState(false);
 
     const applyDateRange = (range) => {
@@ -61,7 +61,7 @@ const JobsPage = () => {
                 start = subDays(now, 30);
                 break;
             case 'all':
-                start = subDays(now, 365 * 20); // effectively "all time"
+                start = subDays(now, 365 * 20);
                 break;
             default:
                 return;
@@ -95,13 +95,12 @@ const JobsPage = () => {
         }
     };
 
-
     const handleReprocess = async () => {
         try {
             setReprocessing(true);
             const res = await reprocessJobsStaticOnly();
             toast.success(res.data.message || 'Jobs reprocessed');
-            await fetchJobs(); // refresh job list after re-scoring
+            await fetchJobs();
         } catch (err) {
             toast.error('Failed to reprocess jobs');
             console.error('[Reprocess Error]', err);
@@ -110,8 +109,7 @@ const JobsPage = () => {
         }
     };
 
-
-    const fetchJobs = async (appliedFilters = filters) => {
+    const fetchJobs = async (appliedFilters = filters, currentSortBy = sortBy, currentSortOrder = sortOrder) => {
         try {
             setLoading(true);
             const query = {};
@@ -121,18 +119,19 @@ const JobsPage = () => {
                 }
             });
 
-            console.log('Query sent to backend:', query);
-            const response = await getFilteredJobs(query);
-            const { jobs: fetchedJobs, totalAll } = response.data.data || {};
+            query.limit = 100;
+            query.sortBy = currentSortBy;
+            query.sortOrder = currentSortOrder;
 
-            console.log('total jobs fetched ', fetchedJobs.length);
+            const response = await getFilteredJobs(query);
+            const { jobs: fetchedJobs, totalAll, total } = response.data.data || {};
 
             setTotalAllJobs(totalAll || 0);
-            setAllJobs(fetchedJobs); // 🟡 Save full list
-            sortJobs(fetchedJobs, sortBy); // 🟢 Immediately sort with current criteria
+            setTotalFiltered(total || 0);
+            setJobs(fetchedJobs || []);
         } catch (err) {
             toast.error('Failed to fetch jobs');
-            console.error('[Fetch Jobs Error]', err);;
+            console.error('[Fetch Jobs Error]', err);
         } finally {
             setLoading(false);
         }
@@ -143,41 +142,8 @@ const JobsPage = () => {
     }, []);
 
     useEffect(() => {
-        if (allJobs.length > 0) {
-            const getSortValue = (job, key) => {
-                if (key === 'relevanceScore') return job.relevance?.relevanceScore || 0;
-                if (key === 'avgHourlyRate') return job.clientAverageHourlyRate || 0;
-                return job[key] || 0;
-            };
-
-            const sorted = [...allJobs].sort((a, b) => {
-                const valA = getSortValue(a, sortBy);
-                const valB = getSortValue(b, sortBy);
-
-                if (typeof valA === 'string') {
-                    return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-                }
-                return sortOrder === 'asc' ? valA - valB : valB - valA;
-            });
-
-            setJobs(sorted);
-        }
-    }, [sortBy, sortOrder, allJobs]);
-
-    const sortJobs = (jobList, sortKey) => {
-        const sorted = [...jobList].sort((a, b) => {
-            const aVal = a[sortKey];
-            const bVal = b[sortKey];
-
-            if (typeof aVal === 'string') {
-                return aVal.localeCompare(bVal);
-            }
-
-            return bVal - aVal; // descending order
-        });
-
-        setJobs(sorted);
-    };
+        fetchJobs(filters, sortBy, sortOrder);
+    }, [sortBy, sortOrder]);
 
     const handleChange = (e) => {
         const { name, value, type } = e.target;
@@ -186,7 +152,9 @@ const JobsPage = () => {
             [name]: type === 'number' ? parseFloat(value) : value
         };
         setFilters(updatedFilters);
-        if (name === 'startDate' || name === 'endDate') fetchJobs(updatedFilters);
+        if (name === 'startDate' || name === 'endDate') {
+            fetchJobs(updatedFilters);
+        }
     };
 
     const handleSelect = (name, value) => {
@@ -203,7 +171,7 @@ const JobsPage = () => {
         setDateRange('last24h');
         setSortBy('postedDate');
         setSortOrder('desc');
-        fetchJobs(cleared);
+        fetchJobs(cleared, 'postedDate', 'desc');
     };
 
     const renderOperatorSelect = (name, currentValue) => (
@@ -373,8 +341,6 @@ const JobsPage = () => {
                                     <SelectItem value="clientCountry">🌍 Client Country</SelectItem>
                                     <SelectItem value="pricingModel">💼 Job Type</SelectItem>
                                 </SelectContent>
-
-
                             </Select>
                         </div>
 
@@ -391,11 +357,8 @@ const JobsPage = () => {
                             </Select>
                         </div>
 
-
-
-
                         <div className="md:ml-auto md:mt-4">
-                            <LoadingButton loading={loading} onClick={() => fetchJobs()} className="btn-primary h-10 px-6">
+                            <LoadingButton loading={loading} onClick={() => fetchJobs(filters)} className="btn-primary h-10 px-6">
                                 Apply
                             </LoadingButton>
                         </div>
@@ -433,12 +396,12 @@ const JobsPage = () => {
                         '🗑️ Delete All Jobs'
                     )}
                 </button>
-
             </div>
 
             <div className="flex items-center gap-3 mb-4 text-sm text-muted-foreground">
                 <div>
-                    Showing <strong>{allJobs.length}</strong> of <strong>{totalAllJobs}</strong> total jobs
+                    Showing <strong>{jobs.length}</strong> of <strong>{totalFiltered}</strong> matching jobs
+                    {' '}(<strong>{totalAllJobs}</strong> total in DB)
                 </div>
 
                 <button
@@ -451,7 +414,6 @@ const JobsPage = () => {
                 </button>
             </div>
 
-
             <div className="space-y-4">
                 {loading ? (
                     <p>Loading jobs...</p>
@@ -461,8 +423,6 @@ const JobsPage = () => {
                     jobs.map((job, idx) => <JobCard key={idx} job={job} />)
                 )}
             </div>
-
-
         </div>
     );
 };
