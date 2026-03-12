@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import LoadingButton from "@/components/ui/loading-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Plus, Search, Zap } from "lucide-react";
@@ -14,6 +14,8 @@ import api from "@/apis/semanticKb";
 import ProjectModal from "../components/ProjectModel";
 import ProjectCard from "../components/ProjectCard";
 
+const POLL_INTERVAL = 4000; // ms between status polls
+
 export default function SemanticKnowledgeBase() {
   const [profiles, setProfiles] = useState([]);
   const [selectedProfileId, setSelectedProfileId] = useState("");
@@ -25,7 +27,11 @@ export default function SemanticKnowledgeBase() {
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
+
+  // Embed All polling state
   const [embeddingAll, setEmbeddingAll] = useState(false);
+  const [embedProgress, setEmbedProgress] = useState(null); // { embedded, total }
+  const pollTimerRef = useRef(null);
 
   useEffect(() => {
     const loadProfiles = async () => {
@@ -45,6 +51,11 @@ export default function SemanticKnowledgeBase() {
       }
     };
     loadProfiles();
+
+    // On mount, check if a previous embed-all is still running (e.g. page reload mid-job)
+    checkEmbedStatus();
+
+    return () => clearInterval(pollTimerRef.current);
   }, []);
 
   useEffect(() => {
@@ -78,6 +89,51 @@ export default function SemanticKnowledgeBase() {
   const refreshProjects = async () => {
     const res = await api.listProjects(selectedProfileId);
     setProjects(res.data.data || []);
+  };
+
+  // Poll the server for embed-all progress
+  const checkEmbedStatus = async () => {
+    try {
+      const res = await api.embedAllStatus();
+      const status = res.data.data;
+      if (status.running) {
+        setEmbeddingAll(true);
+        setEmbedProgress({ embedded: status.embedded, total: status.total });
+        startPolling();
+      }
+    } catch (err) {
+      // silently ignore — status endpoint may not exist on older deploys
+    }
+  };
+
+  const startPolling = () => {
+    clearInterval(pollTimerRef.current);
+    pollTimerRef.current = setInterval(async () => {
+      try {
+        const res = await api.embedAllStatus();
+        const status = res.data.data;
+        setEmbedProgress({ embedded: status.embedded, total: status.total });
+
+        if (status.done || !status.running) {
+          clearInterval(pollTimerRef.current);
+          setEmbeddingAll(false);
+          setEmbedProgress(null);
+
+          if (status.errors?.length) {
+            toast.warning(`Embedded ${status.embedded}/${status.total} — ${status.errors.length} error(s)`);
+            console.warn('[embedAll] errors:', status.errors);
+          } else {
+            toast.success(`Embedded ${status.embedded} of ${status.total} projects ✅`);
+          }
+          await refreshProjects();
+        }
+      } catch (err) {
+        console.error('[embedAll poll]', err);
+        clearInterval(pollTimerRef.current);
+        setEmbeddingAll(false);
+        setEmbedProgress(null);
+      }
+    }, POLL_INTERVAL);
   };
 
   const handleAddOrEdit = () => {
@@ -132,8 +188,9 @@ export default function SemanticKnowledgeBase() {
 
   const handleApprove = async (projId) => {
     try {
-      await api.approveProject(projId);
-      toast.success("Project approved & embedding generated ✅");
+      const res = await api.approveProject(projId);
+      const chunks = res.data?.data?.chunks;
+      toast.success(`Project approved — ${chunks} chunk${chunks !== 1 ? 's' : ''} embedded ✅`);
       await refreshProjects();
     } catch (err) {
       console.error(err);
@@ -144,25 +201,37 @@ export default function SemanticKnowledgeBase() {
   const handleEmbedAll = async () => {
     try {
       setEmbeddingAll(true);
+      setEmbedProgress(null);
       const res = await api.embedAll();
-      const { embedded, total, errors } = res.data.data;
-      toast.success(`Embedded ${embedded} of ${total} projects`);
-      if (errors?.length) {
-        console.warn('[embedAll] errors:', errors);
+      const { total, running } = res.data.data;
+
+      if (running) {
+        // Server accepted the job — start polling
+        setEmbedProgress({ embedded: 0, total });
+        startPolling();
+      } else {
+        // Completed synchronously (e.g. 0 projects) or already done
+        toast.success(res.data.message || 'Done');
+        setEmbeddingAll(false);
+        await refreshProjects();
       }
-      await refreshProjects();
     } catch (err) {
       console.error(err);
       toast.error("Embed All failed");
-    } finally {
       setEmbeddingAll(false);
+      setEmbedProgress(null);
     }
   };
 
-  // Embedding stats
+  // Embedding stats -- uses isEmbedded flag returned by listProjects aggregation
   const approvedProjects = projects.filter(p => p.status === 'approved');
-  const embeddedCount = approvedProjects.filter(p => p.semanticEmbedding?.length > 0).length;
+  const embeddedCount = approvedProjects.filter(p => p.isEmbedded).length;
   const needsEmbedding = approvedProjects.length - embeddedCount;
+
+  // Button label — show live progress when polling
+  const embedButtonLabel = embedProgress
+    ? `Embedding ${embedProgress.embedded}/${embedProgress.total}...`
+    : `Embed All (${needsEmbedding} pending)`;
 
   return (
     <div className="space-y-6">
@@ -173,12 +242,17 @@ export default function SemanticKnowledgeBase() {
             {/* Embedding status badge */}
             {approvedProjects.length > 0 && (
               <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                needsEmbedding === 0
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-yellow-100 text-yellow-700'
+                embeddingAll
+                  ? 'bg-blue-100 text-blue-700'
+                  : needsEmbedding === 0
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-yellow-100 text-yellow-700'
               }`}>
-                {embeddedCount}/{approvedProjects.length} embedded
-                {needsEmbedding > 0 && ` · ${needsEmbedding} pending`}
+                {embeddingAll && embedProgress
+                  ? `Embedding ${embedProgress.embedded}/${embedProgress.total}...`
+                  : embeddedCount + '/' + approvedProjects.length + ' embedded' +
+                    (needsEmbedding > 0 ? ` · ${needsEmbedding} pending` : '')
+                }
               </span>
             )}
           </CardTitle>
@@ -205,19 +279,20 @@ export default function SemanticKnowledgeBase() {
               </Select>
             </div>
 
-            <LoadingButton onClick={handleAddOrEdit}>
+            <LoadingButton onClick={handleAddOrEdit} disabled={embeddingAll}>
               <Plus className="w-4 h-4 mr-1" /> Add Project
             </LoadingButton>
 
-            {/* Embed All button — only shown when approved projects need embedding */}
-            {needsEmbedding > 0 && (
+            {/* Embed All button — shown when projects need embedding OR job is running */}
+            {(needsEmbedding > 0 || embeddingAll) && (
               <LoadingButton
                 loading={embeddingAll}
                 onClick={handleEmbedAll}
+                disabled={embeddingAll}
                 className="bg-amber-500 hover:bg-amber-600 text-white"
               >
                 <Zap className="w-4 h-4 mr-1" />
-                Embed All ({needsEmbedding} pending)
+                {embedButtonLabel}
               </LoadingButton>
             )}
           </div>
