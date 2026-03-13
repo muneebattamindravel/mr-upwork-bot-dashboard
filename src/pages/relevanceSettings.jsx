@@ -3,13 +3,14 @@
 import React, { useEffect, useState } from 'react';
 import { getProfile, updateProfile, getKBList } from '../apis/kb';
 import { getSraaSettings, updateSraaSettings } from '../apis/sraaSettings';
+import { getSettings, updateSettings } from '../apis/settings';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import LoadingButton from '@/components/ui/loading-button';
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Save, Loader2, RotateCcw } from 'lucide-react';
+import { Save, Loader2, RotateCcw, Trash2, Plus } from 'lucide-react';
 
 // ── Shared sub-components ──────────────────────────────────────────────────────
 
@@ -74,13 +75,18 @@ const ModelSelect = ({ label, value, onChange }) => (
 // ── Tab definitions ────────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: 'static',    label: '🔤 Static Relevance' },
-  { id: 'models',    label: '⚙️ AI Models & RAG' },
-  { id: 'scoring',   label: '🎯 Scoring Prompt' },
-  { id: 'proposals', label: '📝 Proposal Prompts' },
-  { id: 'playground',label: '🧪 Playground Prompt' },
-  { id: 'rewrite',   label: '🔁 Rewrite Prompts' },
+  { id: 'static',        label: '🔤 Static Relevance' },
+  { id: 'models',        label: '⚙️ AI Models & RAG' },
+  { id: 'scoring',       label: '🎯 Scoring Prompt' },
+  { id: 'proposals',     label: '📝 Proposal Prompts' },
+  { id: 'playground',    label: '🧪 Playground Prompt' },
+  { id: 'rewrite',       label: '🔁 Rewrite Prompts' },
+  { id: 'notifications', label: '🔔 Notifications' },
+  { id: 'scraper',       label: '🔧 Scraper Configs' },
 ];
+
+// Tabs that use global settings (not SRAA)
+const GLOBAL_TABS = ['notifications', 'scraper'];
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
@@ -97,6 +103,15 @@ const RelevanceSettings = () => {
   const [sraa, setSraa] = useState(null);
   const [sraaLoading, setSraaLoading] = useState(true);
   const [sraaSaving, setSraaSaving] = useState(false);
+
+  // ── Global settings state (notifications + scraper configs) ───────────────
+  const [globalSettings, setGlobalSettings] = useState(null);
+  const [globalLoading, setGlobalLoading] = useState(false);
+  const [globalSaving, setGlobalSaving] = useState(false);
+
+  // ── Scraper Configs local edit state ──────────────────────────────────────
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatUrl, setNewCatUrl] = useState('');
 
   // ── Load profiles (static tab) ─────────────────────────────────────────────
   const fetchProfiles = async () => {
@@ -138,14 +153,27 @@ const RelevanceSettings = () => {
     }
   };
 
-  useEffect(() => { fetchProfiles(); fetchSraa(); }, []);
+  // ── Load global settings (notifications + scraper configs) ────────────────
+  const fetchGlobalSettings = async () => {
+    setGlobalLoading(true);
+    try {
+      const res = await getSettings();
+      setGlobalSettings(res.data.data);
+    } catch (err) {
+      toast.error('Failed to load settings');
+    } finally {
+      setGlobalLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchProfiles(); fetchSraa(); fetchGlobalSettings(); }, []);
 
   useEffect(() => {
     if (profile) fetchStaticSettings(profile);
     else setStaticSettings(null);
   }, [profile]);
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
+  // ── Handlers: static ───────────────────────────────────────────────────────
   const handleStaticSlider = (key) => (val) => {
     const next = { ...staticSettings, [key]: val[0] };
     if (key === 'keywordWeightPercent') next.fieldWeightPercent = 100 - val[0];
@@ -167,6 +195,7 @@ const RelevanceSettings = () => {
     setStaticSaving(false);
   };
 
+  // ── Handlers: SRAA ────────────────────────────────────────────────────────
   const setSraaField = (key, value) => setSraa(prev => ({ ...prev, [key]: value }));
 
   const handleSraaSave = async () => {
@@ -180,16 +209,58 @@ const RelevanceSettings = () => {
     setSraaSaving(false);
   };
 
+  // ── Handlers: global settings ─────────────────────────────────────────────
+  const handleGlobalSwitch = (key) => (val) => setGlobalSettings({ ...globalSettings, [key]: val });
+  const handleGlobalChange = (key, value) => setGlobalSettings({ ...globalSettings, [key]: value });
+
+  const handleGlobalSave = async () => {
+    setGlobalSaving(true);
+    try {
+      await updateSettings(globalSettings);
+      toast.success('✅ Settings saved!');
+    } catch (err) {
+      toast.error('❌ Failed to save settings');
+    }
+    setGlobalSaving(false);
+  };
+
+  // ── Handlers: scraper categories ──────────────────────────────────────────
+  const handleAddCategory = () => {
+    const name = newCatName.trim();
+    const url  = newCatUrl.trim();
+    if (!name || !url) { toast.error('Both name and URL are required'); return; }
+    const existing = globalSettings.scraperCategories || [];
+    setGlobalSettings({ ...globalSettings, scraperCategories: [...existing, { name, url }] });
+    setNewCatName('');
+    setNewCatUrl('');
+  };
+
+  const handleDeleteCategory = (index) => {
+    const updated = (globalSettings.scraperCategories || []).filter((_, i) => i !== index);
+    setGlobalSettings({ ...globalSettings, scraperCategories: updated });
+  };
+
+  const handleCategoryChange = (index, field, value) => {
+    const updated = (globalSettings.scraperCategories || []).map((c, i) =>
+      i === index ? { ...c, [field]: value } : c
+    );
+    setGlobalSettings({ ...globalSettings, scraperCategories: updated });
+  };
+
+  // ── Derived flags ─────────────────────────────────────────────────────────
+  const isSraaTab   = !GLOBAL_TABS.includes(activeTab) && activeTab !== 'static';
+  const isGlobalTab = GLOBAL_TABS.includes(activeTab);
+
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="p-4 max-w-screen-xl w-full space-y-4 mx-auto">
 
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-semibold">🎯 Relevance Settings</h1>
+        <h1 className="text-2xl font-semibold">⚙️ Settings</h1>
 
-        {/* Save button shown on semantic tabs */}
-        {activeTab !== 'static' && sraa && (
+        {/* Save button — SRAA tabs */}
+        {isSraaTab && sraa && (
           <div className="flex gap-2">
             <button
               onClick={fetchSraa}
@@ -229,7 +300,6 @@ const RelevanceSettings = () => {
       {/* ── Tab: Static Relevance ─────────────────────────────────────────── */}
       {activeTab === 'static' && (
         <div className="space-y-4">
-          {/* Profile selector */}
           <Select
             value={profile?._id || ''}
             onValueChange={(id) => {
@@ -315,13 +385,13 @@ const RelevanceSettings = () => {
       )}
 
       {/* ── Semantic tabs — show spinner while loading ─────────────────────── */}
-      {activeTab !== 'static' && sraaLoading && (
+      {isSraaTab && sraaLoading && (
         <div className="flex items-center justify-center h-48">
           <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
         </div>
       )}
 
-      {activeTab !== 'static' && !sraaLoading && sraa && (
+      {isSraaTab && !sraaLoading && sraa && (
         <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-6">
 
           {/* ── Models & RAG ─────────────────────────────────────────────── */}
@@ -329,7 +399,6 @@ const RelevanceSettings = () => {
             <div className="space-y-8">
               <p className="text-sm text-gray-500">Configure the AI models, retrieval counts, and temperatures used across all three semantic functions.</p>
 
-              {/* Semantic Gate */}
               <div>
                 <h3 className="text-sm font-bold text-gray-700 mb-4 pb-1 border-b">🔒 Semantic Scoring Gate</h3>
                 <div className="flex flex-wrap gap-8 items-end">
@@ -352,7 +421,6 @@ const RelevanceSettings = () => {
                 </div>
               </div>
 
-              {/* Scoring */}
               <div>
                 <h3 className="text-sm font-bold text-gray-700 mb-4 pb-1 border-b">🎯 Relevance Scoring</h3>
                 <div className="flex flex-wrap gap-8">
@@ -362,7 +430,6 @@ const RelevanceSettings = () => {
                 </div>
               </div>
 
-              {/* Proposals */}
               <div>
                 <h3 className="text-sm font-bold text-gray-700 mb-4 pb-1 border-b">📝 Proposal Generation</h3>
                 <div className="flex flex-wrap gap-8">
@@ -372,7 +439,6 @@ const RelevanceSettings = () => {
                 </div>
               </div>
 
-              {/* Playground */}
               <div>
                 <h3 className="text-sm font-bold text-gray-700 mb-4 pb-1 border-b">🧪 Query Playground</h3>
                 <div className="flex flex-wrap gap-8">
@@ -459,8 +525,8 @@ const RelevanceSettings = () => {
         </div>
       )}
 
-      {/* Bottom save button for semantic tabs */}
-      {activeTab !== 'static' && sraa && !sraaLoading && (
+      {/* Bottom save button for SRAA tabs */}
+      {isSraaTab && sraa && !sraaLoading && (
         <div className="flex justify-end">
           <button
             onClick={handleSraaSave}
@@ -472,6 +538,157 @@ const RelevanceSettings = () => {
           </button>
         </div>
       )}
+
+      {/* ── Global settings tabs: loading spinner ─────────────────────────── */}
+      {isGlobalTab && globalLoading && (
+        <div className="flex items-center justify-center h-48">
+          <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+        </div>
+      )}
+
+      {/* ── Tab: Notifications ────────────────────────────────────────────── */}
+      {activeTab === 'notifications' && !globalLoading && globalSettings && (
+        <div className="card space-y-6">
+
+          <div className="flex justify-between items-center">
+            <Label className="field-label">🛰️ Enable Bot Alerts</Label>
+            <Switch
+              checked={globalSettings.enableBotAlerts}
+              onCheckedChange={handleGlobalSwitch('enableBotAlerts')}
+            />
+          </div>
+
+          <div className="flex justify-between items-center">
+            <Label className="field-label">💬 Enable Slack Alerts</Label>
+            <Switch
+              checked={globalSettings.enableSlackAlerts}
+              onCheckedChange={handleGlobalSwitch('enableSlackAlerts')}
+            />
+          </div>
+
+          <div className="flex justify-between items-center">
+            <Label className="field-label">📱 Enable Text Alerts (WhatsApp)</Label>
+            <Switch
+              checked={globalSettings.enableTextAlerts}
+              onCheckedChange={handleGlobalSwitch('enableTextAlerts')}
+            />
+          </div>
+
+          <div className="flex justify-between items-center">
+            <Label className="field-label">📌 Enable High-Relevancy Job Alerts</Label>
+            <Switch
+              checked={globalSettings.enableHighRelevancyJobAlerts}
+              onCheckedChange={handleGlobalSwitch('enableHighRelevancyJobAlerts')}
+            />
+          </div>
+
+          <div>
+            <Label className="field-label">🎯 High Relevancy Threshold</Label>
+            <input
+              type="number"
+              className="input-field w-24"
+              min={0}
+              max={100}
+              value={globalSettings.highRelevancyThreshold}
+              onChange={(e) => handleGlobalChange('highRelevancyThreshold', Number(e.target.value))}
+            />
+          </div>
+
+          <LoadingButton loading={globalSaving} className="btn-primary btn-full mt-4" onClick={handleGlobalSave}>
+            Save Changes
+          </LoadingButton>
+        </div>
+      )}
+
+      {/* ── Tab: Scraper Configs ──────────────────────────────────────────── */}
+      {activeTab === 'scraper' && !globalLoading && globalSettings && (
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">
+            Define your Upwork search categories here. Each entry has a human-readable <strong>name</strong> and an <strong>Upwork search URL</strong>.
+            Once saved, each scraper bot can select which categories to target from its Scraper Settings (multi-select by name).
+          </p>
+          <p className="text-xs text-gray-400">
+            To get a category URL: go to upwork.com → search → apply a category filter → copy the URL from your browser.
+          </p>
+
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            {/* Table header */}
+            <div className="grid grid-cols-[1fr_2fr_auto] gap-3 px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <span>Category Name</span>
+              <span>Upwork Search URL</span>
+              <span></span>
+            </div>
+
+            {/* Existing rows */}
+            {(globalSettings.scraperCategories || []).length === 0 && (
+              <div className="px-4 py-6 text-center text-gray-400 text-sm">
+                No categories added yet. Add one below.
+              </div>
+            )}
+
+            {(globalSettings.scraperCategories || []).map((cat, i) => (
+              <div
+                key={i}
+                className="grid grid-cols-[1fr_2fr_auto] gap-3 px-4 py-2 border-b border-gray-100 items-center hover:bg-gray-50"
+              >
+                <input
+                  type="text"
+                  className="input-field text-sm"
+                  value={cat.name}
+                  onChange={e => handleCategoryChange(i, 'name', e.target.value)}
+                />
+                <input
+                  type="text"
+                  className="input-field text-sm font-mono"
+                  value={cat.url}
+                  onChange={e => handleCategoryChange(i, 'url', e.target.value)}
+                />
+                <button
+                  onClick={() => handleDeleteCategory(i)}
+                  className="text-red-400 hover:text-red-600 transition-colors p-1"
+                  title="Remove category"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+
+            {/* Add new row */}
+            <div className="grid grid-cols-[1fr_2fr_auto] gap-3 px-4 py-3 bg-gray-50 items-center">
+              <input
+                type="text"
+                className="input-field text-sm"
+                placeholder="e.g. Web Dev"
+                value={newCatName}
+                onChange={e => setNewCatName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddCategory()}
+              />
+              <input
+                type="text"
+                className="input-field text-sm font-mono"
+                placeholder="https://www.upwork.com/nx/search/jobs/?category2_uid=..."
+                value={newCatUrl}
+                onChange={e => setNewCatUrl(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddCategory()}
+              />
+              <button
+                onClick={handleAddCategory}
+                className="text-purple-600 hover:text-purple-800 transition-colors p-1"
+                title="Add category"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <LoadingButton loading={globalSaving} className="btn-primary" onClick={handleGlobalSave}>
+              Save Categories
+            </LoadingButton>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

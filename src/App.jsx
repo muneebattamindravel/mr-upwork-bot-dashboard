@@ -11,7 +11,7 @@ import JobsPage from './pages/jobsPage';
 import BotMonitor from './pages/botMonitor';
 import RelevanceSettings from './pages/relevanceSettings';
 import NotFound from './pages/notFound';
-import GlobalSettings from './pages/GlobalSettings';
+// GlobalSettings merged into Settings page as a tab — kept for redirect only
 import AnalyticsPage from './pages/analyticsPage';
 import Playground from './pages/Playground';
 import UserManagement from './pages/UserManagement';
@@ -69,7 +69,7 @@ const App = () => {
           />
 
           <Route
-            path="/relevanceSettings"
+            path="/settings"
             element={
               <PrivateRoute>
                 <Layout>
@@ -79,19 +79,10 @@ const App = () => {
             }
           />
 
-          {/* /sraa-settings redirects to the merged relevance settings page */}
-          <Route path="/sraa-settings" element={<Navigate to="/relevanceSettings" />} />
-
-          <Route
-            path="/globalSettings"
-            element={
-              <PrivateRoute>
-                <Layout>
-                  <GlobalSettings />
-                </Layout>
-              </PrivateRoute>
-            }
-          />
+          {/* Legacy redirects */}
+          <Route path="/relevanceSettings" element={<Navigate to="/settings" />} />
+          <Route path="/sraa-settings" element={<Navigate to="/settings" />} />
+          <Route path="/globalSettings" element={<Navigate to="/settings" />} />
 
           <Route
             path="/analytics"

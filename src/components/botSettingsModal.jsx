@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { getBotSettings, updateBotSettings, resetBotStats } from '../apis/bots';
+import { getSettings } from '../apis/settings';
 import LoadingButton from '@/components/ui/loading-button';
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
@@ -13,13 +14,20 @@ const BotSettingsModal = ({ botId, onClose }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [isResetting, setIsResetting] = useState(false);
 
+    // Scraper categories from global settings
+    const [scraperCategories, setScraperCategories] = useState([]);
+
     const fetchSettings = async () => {
         try {
-            const data = await getBotSettings(botId);
-            setSettings(data.settings);
-            setAgentUrl(data.agentUrl || '');
+            const [botRes, globalRes] = await Promise.all([
+                getBotSettings(botId),
+                getSettings(),
+            ]);
+            setSettings(botRes.settings);
+            setAgentUrl(botRes.agentUrl || '');
+            setScraperCategories(globalRes.data?.data?.scraperCategories || []);
         } catch (err) {
-            toast.error('❌ Failed to load bot settings');
+            toast.error('❌ Failed to load scraper settings');
         }
     };
 
@@ -59,7 +67,7 @@ const BotSettingsModal = ({ botId, onClose }) => {
                 settings: s,
                 agentUrl: agentUrl,
             });
-            toast.success('✅ Bot settings saved!');
+            toast.success('✅ Scraper settings saved!');
             if (onClose) onClose();
         } catch {
             toast.error('❌ Failed to save settings');
@@ -78,22 +86,16 @@ const BotSettingsModal = ({ botId, onClose }) => {
         setSettings({ ...settings, [key]: e.target.value });
     };
 
-    // IMP S7 helpers
-    // Each line = either a keyword (bot builds URL) OR a full Upwork category URL.
-    // Category URLs use Upwork's category2_uid param — matches the exact taxonomy Upwork uses
-    // rather than fuzzy-matching keywords against job text.
-    // To add a category: go to upwork.com → search → apply category filter → copy the URL.
-    const RECOMMENDED_QUERIES = [
-        // ── Upwork main categories (category2_uid URLs — verified from upwork.com) ──
-        'https://www.upwork.com/nx/search/jobs/?category2_uid=531770282580668418', // Web, Mobile & Software Dev
-        'https://www.upwork.com/nx/search/jobs/?category2_uid=531770282580668421', // Design & Creative
-        'https://www.upwork.com/nx/search/jobs/?category2_uid=531770282580668419', // IT & Networking
-        'https://www.upwork.com/nx/search/jobs/?category2_uid=531770282580668420', // Data Science & Analytics
-        'https://www.upwork.com/nx/search/jobs/?category2_uid=531770282580668422', // Sales & Marketing
-    ];
+    // ── Category multi-select helpers ─────────────────────────────────────────
+    const selectedUrls = new Set(settings?.searchQueries || []);
 
-    const queriesToText = (arr) => (arr || []).join('\n');
-    const textToQueries = (text) => text.split('\n').map(s => s.trim()).filter(Boolean);
+    const toggleCategory = (url) => {
+        const current = settings.searchQueries || [];
+        const updated = current.includes(url)
+            ? current.filter(u => u !== url)
+            : [...current, url];
+        setSettings({ ...settings, searchQueries: updated });
+    };
 
     if (!settings) return <div className="p-6">Loading...</div>;
 
@@ -102,7 +104,7 @@ const BotSettingsModal = ({ botId, onClose }) => {
             <div
                 className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl overflow-y-auto max-h-[90vh] relative"
             >
-                {/* ❌ Cross button */}
+                {/* Close button */}
                 <button
                     className="absolute top-4 right-4 text-gray-500 hover:text-black"
                     onClick={onClose}
@@ -110,10 +112,10 @@ const BotSettingsModal = ({ botId, onClose }) => {
                     <X className="w-6 h-6" />
                 </button>
 
-                <h2 className="text-xl font-bold mb-4">⚙️ Settings for {botId}</h2>
+                <h2 className="text-xl font-bold mb-4">⚙️ Scraper Settings for {botId}</h2>
 
                 <div className="space-y-6">
-                    {/* ✅ Agent URL */}
+                    {/* Agent URL */}
                     <div>
                         <Label className="font-semibold">🔗 Agent URL</Label>
                         <input
@@ -124,61 +126,72 @@ const BotSettingsModal = ({ botId, onClose }) => {
                         />
                     </div>
 
-                    {/* IMP S7 — Multi-query sweep */}
+                    {/* Category multi-select */}
                     <div>
-                        <div className="flex items-center justify-between mb-1">
-                            <Label className="font-semibold">🔍 Search Queries</Label>
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-gray-400">
-                                    {(settings.searchQueries || []).length} queries · one per line
-                                </span>
-                                <button
-                                    type="button"
-                                    className="text-xs text-purple-600 hover:text-purple-800 underline"
-                                    onClick={() => setSettings({ ...settings, searchQueries: [...RECOMMENDED_QUERIES] })}
-                                >
-                                    Use recommended tech set
-                                </button>
-                                <button
-                                    type="button"
-                                    className="text-xs text-gray-400 hover:text-gray-600 underline"
-                                    onClick={() => setSettings({ ...settings, searchQueries: [] })}
-                                >
-                                    Clear
-                                </button>
-                            </div>
+                        <div className="flex items-center justify-between mb-2">
+                            <Label className="font-semibold">🔍 Categories to Target</Label>
+                            <span className="text-xs text-gray-400">
+                                {selectedUrls.size} selected
+                            </span>
                         </div>
-                        <textarea
-                            className="input-field w-full font-mono text-sm"
-                            rows={8}
-                            placeholder={"software developer\nweb developer\nmobile app developer\n..."}
-                            value={queriesToText(settings.searchQueries)}
-                            onChange={(e) => setSettings({ ...settings, searchQueries: textToQueries(e.target.value) })}
-                        />
-                        <p className="text-xs text-gray-400 mt-1">
-                            Each line = a <strong>keyword</strong> (e.g. <code>react developer</code>) or a full <strong>Upwork category URL</strong>.<br />
-                            Category URLs are more accurate — to get one: go to upwork.com → search → apply a category filter → copy the URL from your browser.<br />
-                            The bot sweeps ALL entries in one cycle. Leave blank to use legacy Search Query below.
-                        </p>
-                    </div>
 
-                    {/* Legacy single query — used only if searchQueries is empty */}
-                    <div>
-                        <Label className="font-semibold text-gray-400">🔍 Search Query (legacy fallback)</Label>
-                        <input
-                            type="text"
-                            className="input-field w-full text-gray-400"
-                            placeholder="Only used if Search Queries above is empty"
-                            value={settings.searchQuery}
-                            onChange={handleText('searchQuery')}
-                        />
+                        {scraperCategories.length === 0 ? (
+                            <div className="border border-dashed border-gray-300 rounded-lg p-4 text-sm text-gray-500 text-center">
+                                No categories configured yet.{' '}
+                                <span className="text-purple-600 font-medium">
+                                    Go to Settings → 🔧 Scraper Configs
+                                </span>{' '}
+                                to add categories first.
+                            </div>
+                        ) : (
+                            <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                {scraperCategories.map((cat, i) => {
+                                    const isChecked = selectedUrls.has(cat.url);
+                                    return (
+                                        <label
+                                            key={i}
+                                            className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${
+                                                i < scraperCategories.length - 1 ? 'border-b border-gray-100' : ''
+                                            } ${isChecked ? 'bg-purple-50' : 'hover:bg-gray-50'}`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={() => toggleCategory(cat.url)}
+                                                className="accent-purple-600 w-4 h-4 shrink-0"
+                                            />
+                                            <span className="text-sm font-medium text-gray-800">{cat.name}</span>
+                                            <span className="text-xs text-gray-400 truncate ml-auto hidden sm:block" title={cat.url}>
+                                                {cat.url.includes('category2_uid=')
+                                                    ? `uid:${cat.url.split('category2_uid=')[1].split('&')[0]}`
+                                                    : cat.url}
+                                            </span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {/* Legacy fallback — only shown if no categories configured */}
+                        {scraperCategories.length === 0 && (
+                            <div className="mt-3">
+                                <Label className="font-semibold text-gray-400 text-xs">🔍 Fallback: Legacy Search Query</Label>
+                                <input
+                                    type="text"
+                                    className="input-field w-full text-gray-400 mt-1"
+                                    placeholder="Used if no categories selected above"
+                                    value={settings.searchQuery}
+                                    onChange={handleText('searchQuery')}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     {[
                         {
                             keys: ['cycleDelayMin', 'cycleDelayMax'],
                             label: '🔁 Delay Between Cycles (ms)',
-                            min: 0, max: 60000,
+                            min: 0, max: 300000,
                         },
                         {
                             keys: ['delayBetweenJobsScrapingMin', 'delayBetweenJobsScrapingMax'],

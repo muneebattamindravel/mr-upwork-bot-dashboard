@@ -4,9 +4,8 @@ import {
   BookOpen,
   BarChart2,
   Briefcase,
-  Bell,
   Monitor,
-  Sliders,
+  Settings,
   X,
   FlaskConical,
   Users,
@@ -58,14 +57,14 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       </NavLink>
 
       <NavLink
-        to="/relevanceSettings"
+        to="/settings"
         className={({ isActive }) =>
           `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
         }
         onClick={() => setIsOpen(false)}
       >
-        <Sliders className="w-5 h-5" />
-        Relevance Settings
+        <Settings className="w-5 h-5" />
+        Settings
       </NavLink>
 
       <NavLink
@@ -76,7 +75,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         onClick={() => setIsOpen(false)}
       >
         <Monitor className="w-5 h-5" />
-        Bot Monitor
+        Scraper Monitor
       </NavLink>
 
       <NavLink
@@ -99,17 +98,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       >
         <FlaskConical className="w-5 h-5" />
         BD Playground
-      </NavLink>
-
-      <NavLink
-        to="/globalSettings"
-        className={({ isActive }) =>
-          `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
-        }
-        onClick={() => setIsOpen(false)}
-      >
-        <Bell className="w-5 h-5" />
-        Notification Settings
       </NavLink>
 
       {role === 'superAdmin' && (
