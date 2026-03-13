@@ -11,10 +11,8 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      navigate('/jobs');
-    }
+    const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+    if (token) navigate('/jobs');
   }, [navigate]);
 
   const handleLogin = async (e) => {
@@ -36,10 +34,14 @@ const Login = () => {
     setLoading(true);
     try {
       const res = await axios.post('/auth/login', { username, password });
-      const { token, user } = res.data.data;
+      const { accessToken, refreshToken, userId, user } = res.data.data;
 
-      localStorage.setItem('token', token);
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('userId', userId);
       localStorage.setItem('user', JSON.stringify(user));
+      // Legacy key — kept so any old code reading 'token' still works during migration
+      localStorage.setItem('token', accessToken);
 
       toast.success('Logged in successfully');
       navigate('/jobs');

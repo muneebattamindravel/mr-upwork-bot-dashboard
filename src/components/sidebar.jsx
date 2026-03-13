@@ -9,12 +9,18 @@ import {
   Sliders,
   X,
   FlaskConical,
+  Users,
 } from 'lucide-react';
 
+const currentUserRole = () => {
+  try { return JSON.parse(localStorage.getItem('user') || '{}')?.role || ''; }
+  catch { return ''; }
+};
+
 const Sidebar = ({ isOpen, setIsOpen }) => {
-  const navItemClass =
-    'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors';
-  const activeClass = 'bg-white bg-opacity-20 text-white font-semibold';
+  const role         = currentUserRole();
+  const navItemClass = 'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors';
+  const activeClass  = 'bg-white bg-opacity-20 text-white font-semibold';
 
   const navLinks = (
     <nav className="space-y-2 mt-6">
@@ -105,6 +111,19 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         <Bell className="w-5 h-5" />
         Notification Settings
       </NavLink>
+
+      {role === 'superAdmin' && (
+        <NavLink
+          to="/users"
+          className={({ isActive }) =>
+            `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
+          }
+          onClick={() => setIsOpen(false)}
+        >
+          <Users className="w-5 h-5" />
+          User Management
+        </NavLink>
+      )}
     </nav>
   );
 

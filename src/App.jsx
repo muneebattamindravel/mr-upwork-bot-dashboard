@@ -14,6 +14,7 @@ import NotFound from './pages/notFound';
 import GlobalSettings from './pages/GlobalSettings';
 import AnalyticsPage from './pages/analyticsPage';
 import Playground from './pages/Playground';
+import UserManagement from './pages/UserManagement';
 
 const App = () => {
   return (
@@ -109,6 +110,17 @@ const App = () => {
               <PrivateRoute>
                 <Layout>
                   <Playground />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/users"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <UserManagement />
                 </Layout>
               </PrivateRoute>
             }
