@@ -2,13 +2,12 @@
 import React, { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectItem, SelectTrigger, SelectContent, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import LoadingButton from '@/components/ui/loading-button';
 import JobCard from '@/components/jobCard';
 import { getFilteredJobs } from '@/apis/jobs';
 import { subDays, format } from 'date-fns';
-import { RotateCcw, Download, SlidersHorizontal, X, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { RotateCcw, Download, SlidersHorizontal, X, Loader2 } from 'lucide-react';
 import { reprocessJobsStaticOnly, deleteAllJobs } from '../apis/jobs';
 import axios from '../apis/axios';
 
@@ -35,7 +34,7 @@ const defaultFilters = {
 };
 
 const OPERATORS = [
-  { value:'any', label:'any' },
+  { value:'any', label:'–' },
   { value:'>',   label:'>' },
   { value:'>=',  label:'≥' },
   { value:'=',   label:'=' },
@@ -43,51 +42,41 @@ const OPERATORS = [
   { value:'<=',  label:'≤' },
 ];
 
-// ── All helper components defined OUTSIDE JobsPage so they have stable identity ──
-// (defining components inside a parent component causes React to unmount/remount
-//  them on every parent render, which breaks Radix UI Select's internal state)
+// ── Stable helper components (defined OUTSIDE to avoid Radix unmount on re-render) ──
 
-const FilterSection = ({ title, open, onToggle, children }) => (
-  <div className="border rounded-lg overflow-hidden">
-    <button type="button" onClick={onToggle}
-      className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 hover:bg-gray-100 text-sm font-semibold text-gray-700">
-      {title}
-      {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-    </button>
-    {open && (
-      <div className="px-4 py-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-        {children}
-      </div>
-    )}
-  </div>
-);
-
-const FF = ({ label, children }) => (
-  <div className="flex flex-col gap-1">
-    <Label className="field-label">{label}</Label>
+// Compact inline label+control pair
+const FI = ({ label, children }) => (
+  <div className="flex items-center gap-1.5 min-w-0">
+    <span className="text-[11px] text-gray-400 shrink-0 leading-none">{label}</span>
     {children}
   </div>
 );
 
-// onSel: (name, value) => void
-const Sel = ({ name, value, options, onSel }) => (
+// Compact select – same height as inputs
+const CS = ({ name, value, options, onSel, width = 'w-24' }) => (
   <Select value={value} onValueChange={v => onSel(name, v)}>
-    <SelectTrigger className="select-trigger"><SelectValue placeholder="any" /></SelectTrigger>
-    <SelectContent className="select-content bg-white text-black">
-      {options.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+    <SelectTrigger className={`h-7 text-xs px-2 py-0 ${width} border-gray-200`}>
+      <SelectValue />
+    </SelectTrigger>
+    <SelectContent className="bg-white text-black text-xs">
+      {options.map(o => <SelectItem key={o.value} value={o.value} className="text-xs py-1">{o.label}</SelectItem>)}
     </SelectContent>
   </Select>
 );
 
-const OpInput = ({ opName, opVal, inputName, inputVal, onSel, onChange }) => (
-  <div className="flex items-center gap-1">
+// Compact op+number pair
+const OI = ({ opName, opVal, inputName, inputVal, onSel, onChange }) => (
+  <div className="flex items-center gap-0.5">
     <Select value={opVal} onValueChange={v => onSel(opName, v)}>
-      <SelectTrigger className="select-trigger w-[62px] shrink-0"><SelectValue /></SelectTrigger>
-      <SelectContent className="select-content bg-white text-black">
-        {OPERATORS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+      <SelectTrigger className="h-7 text-xs px-1.5 w-10 border-gray-200 shrink-0">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent className="bg-white text-black text-xs">
+        {OPERATORS.map(o => <SelectItem key={o.value} value={o.value} className="text-xs py-1">{o.label}</SelectItem>)}
       </SelectContent>
     </Select>
-    <Input name={inputName} type="number" value={inputVal} onChange={onChange} className="input-field" />
+    <Input name={inputName} type="number" value={inputVal} onChange={onChange}
+      className="h-7 text-xs px-2 w-20 border-gray-200" />
   </div>
 );
 
@@ -96,7 +85,6 @@ const JobsPage = () => {
   const [jobs, setJobs]                   = useState([]);
   const [loading, setLoading]             = useState(false);
   const [showFilters, setShowFilters]     = useState(true);
-  const [sections, setSections]           = useState({ basic: true, client: false, scoring: false });
   const [dateRange, setDateRange]         = useState('last3d');
   const [sortBy, setSortBy]               = useState('postedDate');
   const [sortOrder, setSortOrder]         = useState('desc');
@@ -109,8 +97,6 @@ const JobsPage = () => {
   useEffect(() => {
     axios.get('/kb/list').then(r => setProfiles(r.data?.data?.profiles || [])).catch(() => {});
   }, []);
-
-  const toggleSec = k => setSections(p => ({ ...p, [k]: !p[k] }));
 
   const applyDateRange = (range, cur = filters) => {
     const now = new Date();
@@ -192,169 +178,183 @@ const JobsPage = () => {
     k!=='startDate' && k!=='endDate' && v!==''&&v!=='any'&&v!==null&&v!==undefined).length;
 
   return (
-    <div className="p-4 space-y-4">
-      {/* Header */}
+    <div className="p-4 space-y-3">
+
+      {/* ── Header row ── */}
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="page-title">🧠 Relevant Job Listings</h2>
+        <h2 className="page-title">🧠 Job Listings</h2>
         <div className="flex items-center gap-2 flex-wrap text-sm">
-          <span className="text-gray-500">
-            <strong>{jobs.length}</strong>/<strong>{totalFiltered}</strong> shown · <strong>{totalAll}</strong> total
+          <span className="text-gray-500 text-xs">
+            <strong>{jobs.length}</strong>/<strong>{totalFiltered}</strong> · <strong>{totalAll}</strong> total
           </span>
           <button onClick={() => fetchJobs()} disabled={loading}
-            className="p-2 rounded-full border hover:bg-gray-100 disabled:opacity-50" title="Refresh">
-            <RotateCcw className={`w-4 h-4 text-purple-700 ${loading?'animate-spin':''}`} />
+            className="p-1.5 rounded-full border hover:bg-gray-100 disabled:opacity-50" title="Refresh">
+            <RotateCcw className={`w-3.5 h-3.5 text-purple-700 ${loading?'animate-spin':''}`} />
           </button>
           <button onClick={exportCSV} disabled={!jobs.length}
-            className="flex items-center gap-1 px-3 py-1.5 border rounded hover:bg-gray-100 disabled:opacity-40">
-            <Download className="w-4 h-4 text-green-700" /> Export
+            className="flex items-center gap-1 px-2.5 py-1 text-xs border rounded hover:bg-gray-100 disabled:opacity-40">
+            <Download className="w-3 h-3 text-green-700" /> Export
           </button>
           <button onClick={handleReprocess} disabled={reprocessing}
-            className="btn-outline text-blue-600 flex items-center gap-1">
-            {reprocessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '🔄'} Reprocess
+            className="flex items-center gap-1 px-2.5 py-1 text-xs border rounded hover:bg-gray-100 disabled:opacity-40">
+            {reprocessing ? <Loader2 className="w-3 h-3 animate-spin" /> : '🔄'} Reprocess
           </button>
           <button onClick={handleDelete} disabled={deleting}
-            className="btn-outline text-red-600 flex items-center gap-1">
-            {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '🗑️'} Delete All
+            className="flex items-center gap-1 px-2.5 py-1 text-xs border rounded hover:bg-gray-100 text-red-600 disabled:opacity-40">
+            {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : '🗑️'} Delete All
           </button>
         </div>
       </div>
 
-      {/* Filter toggle */}
+      {/* ── Filter toggle row ── */}
       <div className="flex items-center gap-2">
         <button onClick={() => setShowFilters(p=>!p)}
-          className="flex items-center gap-2 btn-outline text-sm">
-          <SlidersHorizontal className="w-4 h-4" />
-          {showFilters ? 'Hide Filters' : 'Show Filters'}
+          className="flex items-center gap-1.5 px-2.5 py-1 text-xs border rounded hover:bg-gray-50">
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+          Filters
           {activeCnt > 0 && (
-            <span className="bg-purple-600 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center">
+            <span className="bg-purple-600 text-white text-[10px] rounded-full px-1.5 py-0.5 min-w-[18px] text-center leading-none">
               {activeCnt}
             </span>
           )}
         </button>
         {activeCnt > 0 && (
-          <button onClick={clearFilters} className="flex items-center gap-1 text-sm text-red-500 hover:text-red-700">
-            <X className="w-3.5 h-3.5" /> Clear all
+          <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
+            <X className="w-3 h-3" /> Clear
           </button>
         )}
       </div>
 
+      {/* ── Compact filter panel ── */}
       {showFilters && (
-        <div className="space-y-2">
-          {/* Basic */}
-          <FilterSection title="📋 Basic" open={sections.basic} onToggle={() => toggleSec('basic')}>
-            <FF label="📅 Date Range">
+        <div className="border rounded-lg p-3 bg-gray-50/50 space-y-2">
+
+          {/* Row 1 — Basic */}
+          <div className="flex flex-wrap gap-x-4 gap-y-2 items-center">
+            <FI label="Date">
               <Select value={dateRange} onValueChange={v => { setDateRange(v); if (v !== 'custom') applyDateRange(v); }}>
-                <SelectTrigger className="select-trigger"><SelectValue placeholder="any" /></SelectTrigger>
-                <SelectContent className="select-content bg-white text-black">
-                  {[{value:'last24h',label:'Last 24h'},{value:'last3d',label:'Last 3 days'},
-                    {value:'last7d',label:'Last 7 days'},{value:'last30d',label:'Last 30 days'},
-                    {value:'all',label:'All Time'},{value:'custom',label:'Custom'}]
-                    .map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                <SelectTrigger className="h-7 text-xs px-2 w-28 border-gray-200"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-white text-black text-xs">
+                  {[{value:'last24h',label:'Last 24h'},{value:'last3d',label:'Last 3d'},
+                    {value:'last7d',label:'Last 7d'},{value:'last30d',label:'Last 30d'},
+                    {value:'all',label:'All time'},{value:'custom',label:'Custom'}]
+                    .map(o => <SelectItem key={o.value} value={o.value} className="text-xs py-1">{o.label}</SelectItem>)}
                 </SelectContent>
               </Select>
-            </FF>
+            </FI>
             {dateRange === 'custom' && <>
-              <FF label="Start Date"><Input type="date" name="startDate" value={filters.startDate} onChange={handleChange} className="input-field" /></FF>
-              <FF label="End Date"><Input type="date" name="endDate" value={filters.endDate} onChange={handleChange} className="input-field" /></FF>
+              <FI label="From">
+                <Input type="date" name="startDate" value={filters.startDate} onChange={handleChange}
+                  className="h-7 text-xs px-2 w-36 border-gray-200" />
+              </FI>
+              <FI label="To">
+                <Input type="date" name="endDate" value={filters.endDate} onChange={handleChange}
+                  className="h-7 text-xs px-2 w-36 border-gray-200" />
+              </FI>
             </>}
-            <FF label="🔍 Keyword">
-              <Input name="keyword" value={filters.keyword} onChange={handleChange} className="input-field" placeholder="Title, description..." />
-            </FF>
-            <FF label="💼 Job Type">
-              <Sel name="pricingModel" value={filters.pricingModel} onSel={handleSel} options={[
-                {value:'any',label:'Any'},{value:'fixed',label:'Fixed Price'},{value:'hourly',label:'Hourly'}
-              ]} />
-            </FF>
-            <FF label="🎓 Experience Level">
-              <Sel name="experienceLevel" value={filters.experienceLevel} onSel={handleSel} options={[
-                {value:'any',label:'Any'},{value:'Entry Level',label:'Entry Level'},
-                {value:'Intermediate',label:'Intermediate'},{value:'Expert',label:'Expert'}
-              ]} />
-            </FF>
-            <FF label="🌍 Country">
-              <Input name="clientCountry" placeholder="e.g. US, UK" value={filters.clientCountry} onChange={handleChange} className="input-field" />
-            </FF>
-            <FF label="💵 Min Budget">
-              <Input name="minBudget" type="number" value={filters.minBudget} onChange={handleChange} className="input-field" placeholder="0" />
-            </FF>
-            <FF label="💵 Max Budget">
-              <Input name="maxBudget" type="number" value={filters.maxBudget} onChange={handleChange} className="input-field" placeholder="∞" />
-            </FF>
-          </FilterSection>
+            <FI label="Search">
+              <Input name="keyword" value={filters.keyword} onChange={handleChange}
+                className="h-7 text-xs px-2 w-44 border-gray-200" placeholder="keyword..." />
+            </FI>
+            <FI label="Type">
+              <CS name="pricingModel" value={filters.pricingModel} onSel={handleSel} width="w-24"
+                options={[{value:'any',label:'Any'},{value:'fixed',label:'Fixed'},{value:'hourly',label:'Hourly'}]} />
+            </FI>
+            <FI label="Level">
+              <CS name="experienceLevel" value={filters.experienceLevel} onSel={handleSel} width="w-28"
+                options={[{value:'any',label:'Any'},{value:'Entry Level',label:'Entry'},
+                  {value:'Intermediate',label:'Mid'},{value:'Expert',label:'Expert'}]} />
+            </FI>
+            <FI label="Country">
+              <Input name="clientCountry" value={filters.clientCountry} onChange={handleChange}
+                className="h-7 text-xs px-2 w-20 border-gray-200" placeholder="US, UK…" />
+            </FI>
+            <FI label="Budget $">
+              <Input name="minBudget" type="number" value={filters.minBudget} onChange={handleChange}
+                className="h-7 text-xs px-2 w-20 border-gray-200" placeholder="min" />
+            </FI>
+            <span className="text-gray-300 text-xs">—</span>
+            <Input name="maxBudget" type="number" value={filters.maxBudget} onChange={handleChange}
+              className="h-7 text-xs px-2 w-20 border-gray-200" placeholder="max" />
+          </div>
 
-          {/* Client Quality */}
-          <FilterSection title="👤 Client Quality" open={sections.client} onToggle={() => toggleSec('client')}>
-            <FF label="⭐ Rating">
-              <OpInput opName="clientRatingOp" opVal={filters.clientRatingOp} inputName="clientRating" inputVal={filters.clientRating} onSel={handleSel} onChange={handleChange} />
-            </FF>
-            <FF label="💰 Total Spend">
-              <OpInput opName="clientSpendOp" opVal={filters.clientSpendOp} inputName="clientSpend" inputVal={filters.clientSpend} onSel={handleSel} onChange={handleChange} />
-            </FF>
-            <FF label="⚖️ Avg Hourly Rate">
-              <OpInput opName="avgHourlyRateOp" opVal={filters.avgHourlyRateOp} inputName="avgHourlyRate" inputVal={filters.avgHourlyRate} onSel={handleSel} onChange={handleChange} />
-            </FF>
-            <FF label="📞 Phone Verified">
-              <Sel name="clientPhoneVerified" value={filters.clientPhoneVerified} onSel={handleSel} options={[{value:'any',label:'Any'},{value:'true',label:'Yes'},{value:'false',label:'No'}]} />
-            </FF>
-            <FF label="💳 Payment Verified">
-              <Sel name="clientPaymentVerified" value={filters.clientPaymentVerified} onSel={handleSel} options={[{value:'any',label:'Any'},{value:'true',label:'Yes'},{value:'false',label:'No'}]} />
-            </FF>
-          </FilterSection>
+          {/* Divider */}
+          <div className="border-t border-gray-200" />
 
-          {/* Scoring */}
-          <FilterSection title="🧠 Scoring & Relevance" open={sections.scoring} onToggle={() => toggleSec('scoring')}>
-            <FF label="🏷 Profile Match">
-              <Sel name="profile" value={filters.profile} onSel={handleSel} options={[
-                {value:'any',label:'Any Profile'},
-                ...profiles.map(p => ({value:p.profileName,label:p.profileName}))
-              ]} />
-            </FF>
-            <FF label="🤖 AI Verdict">
-              <Sel name="semanticVerdict" value={filters.semanticVerdict} onSel={handleSel} options={[
-                {value:'any',label:'Any'},{value:'Yes',label:'✅ Yes'},
-                {value:'Maybe',label:'🟡 Maybe'},{value:'No',label:'❌ No'}
-              ]} />
-            </FF>
-            <FF label="📊 Min Relevance Score">
+          {/* Row 2 — Client + Scoring */}
+          <div className="flex flex-wrap gap-x-4 gap-y-2 items-center">
+            <FI label="Rating">
+              <OI opName="clientRatingOp" opVal={filters.clientRatingOp} inputName="clientRating"
+                inputVal={filters.clientRating} onSel={handleSel} onChange={handleChange} />
+            </FI>
+            <FI label="Spend $">
+              <OI opName="clientSpendOp" opVal={filters.clientSpendOp} inputName="clientSpend"
+                inputVal={filters.clientSpend} onSel={handleSel} onChange={handleChange} />
+            </FI>
+            <FI label="Avg $/hr">
+              <OI opName="avgHourlyRateOp" opVal={filters.avgHourlyRateOp} inputName="avgHourlyRate"
+                inputVal={filters.avgHourlyRate} onSel={handleSel} onChange={handleChange} />
+            </FI>
+            <FI label="Phone">
+              <CS name="clientPhoneVerified" value={filters.clientPhoneVerified} onSel={handleSel} width="w-16"
+                options={[{value:'any',label:'Any'},{value:'true',label:'Yes'},{value:'false',label:'No'}]} />
+            </FI>
+            <FI label="Payment">
+              <CS name="clientPaymentVerified" value={filters.clientPaymentVerified} onSel={handleSel} width="w-16"
+                options={[{value:'any',label:'Any'},{value:'true',label:'Yes'},{value:'false',label:'No'}]} />
+            </FI>
+            {/* scoring */}
+            <div className="w-px h-4 bg-gray-300 mx-1 hidden sm:block" />
+            <FI label="Profile">
+              <CS name="profile" value={filters.profile} onSel={handleSel} width="w-32"
+                options={[{value:'any',label:'Any'},...profiles.map(p=>({value:p.profileName,label:p.profileName}))]} />
+            </FI>
+            <FI label="AI">
+              <CS name="semanticVerdict" value={filters.semanticVerdict} onSel={handleSel} width="w-20"
+                options={[{value:'any',label:'Any'},{value:'Yes',label:'✅ Yes'},{value:'Maybe',label:'🟡 Maybe'},{value:'No',label:'❌ No'}]} />
+            </FI>
+            <FI label="Min Score">
               <Input name="minRelevanceScore" type="number" min="0" max="100"
                 value={filters.minRelevanceScore} onChange={handleChange}
-                className="input-field" placeholder="e.g. 50" />
-            </FF>
-          </FilterSection>
+                className="h-7 text-xs px-2 w-16 border-gray-200" placeholder="0–100" />
+            </FI>
+          </div>
 
-          {/* Sort + Apply */}
-          <div className="flex flex-wrap items-end gap-3 pt-1 border-t">
-            <FF label="📊 Sort By">
+          {/* Divider */}
+          <div className="border-t border-gray-200" />
+
+          {/* Row 3 — Sort + Apply */}
+          <div className="flex flex-wrap items-center gap-3">
+            <FI label="Sort">
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="select-trigger w-[180px]"><SelectValue /></SelectTrigger>
-                <SelectContent className="select-content bg-white text-black">
-                  <SelectItem value="postedDate">📅 Posted Date</SelectItem>
-                  <SelectItem value="relevanceScore">🧠 Relevance Score</SelectItem>
-                  <SelectItem value="clientRating">⭐ Client Rating</SelectItem>
-                  <SelectItem value="clientSpend">💰 Client Spend</SelectItem>
-                  <SelectItem value="minRange">💵 Min Budget</SelectItem>
+                <SelectTrigger className="h-7 text-xs px-2 w-36 border-gray-200"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-white text-black text-xs">
+                  <SelectItem value="postedDate"   className="text-xs py-1">📅 Posted Date</SelectItem>
+                  <SelectItem value="relevanceScore" className="text-xs py-1">🧠 Relevance</SelectItem>
+                  <SelectItem value="clientRating"  className="text-xs py-1">⭐ Rating</SelectItem>
+                  <SelectItem value="clientSpend"   className="text-xs py-1">💰 Spend</SelectItem>
+                  <SelectItem value="minRange"      className="text-xs py-1">💵 Budget</SelectItem>
                 </SelectContent>
               </Select>
-            </FF>
-            <FF label="⬇️ Order">
+            </FI>
+            <FI label="Order">
               <Select value={sortOrder} onValueChange={setSortOrder}>
-                <SelectTrigger className="select-trigger w-[140px]"><SelectValue /></SelectTrigger>
-                <SelectContent className="select-content bg-white text-black">
-                  <SelectItem value="desc">Newest / Highest</SelectItem>
-                  <SelectItem value="asc">Oldest / Lowest</SelectItem>
+                <SelectTrigger className="h-7 text-xs px-2 w-28 border-gray-200"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-white text-black text-xs">
+                  <SelectItem value="desc" className="text-xs py-1">↓ Highest</SelectItem>
+                  <SelectItem value="asc"  className="text-xs py-1">↑ Lowest</SelectItem>
                 </SelectContent>
               </Select>
-            </FF>
-            <div className="mb-0.5">
-              <LoadingButton loading={loading} onClick={() => fetchJobs(filters)} className="btn-primary h-9 px-6">
-                Apply Filters
-              </LoadingButton>
-            </div>
+            </FI>
+            <LoadingButton loading={loading} onClick={() => fetchJobs(filters)}
+              className="h-7 px-4 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded">
+              Apply
+            </LoadingButton>
           </div>
         </div>
       )}
 
-      {/* Job list */}
+      {/* ── Job list ── */}
       <div className="space-y-4">
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-purple-600" /></div>
