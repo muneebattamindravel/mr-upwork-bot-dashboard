@@ -14,7 +14,7 @@ import NotFound from './pages/notFound';
 // GlobalSettings merged into Settings page as a tab — kept for redirect only
 import AnalyticsPage from './pages/analyticsPage';
 import Playground from './pages/Playground';
-import UserManagement from './pages/UserManagement';
+import UserManagement from './pages/UserManagement'; // deploy
 
 const App = () => {
   return (
