@@ -78,6 +78,28 @@ const BotSettingsModal = ({ botId, onClose }) => {
         setSettings({ ...settings, [key]: e.target.value });
     };
 
+    // IMP S7 helpers
+    const RECOMMENDED_QUERIES = [
+        'software developer',
+        'web developer',
+        'mobile app developer',
+        'frontend developer',
+        'backend developer',
+        'UI UX designer',
+        'graphic designer',
+        'video editor animation',
+        '3D designer',
+        'machine learning AI developer',
+        'data analyst scientist',
+        'cloud DevOps engineer',
+        'game developer',
+        'blockchain developer',
+        'cybersecurity',
+    ];
+
+    const queriesToText = (arr) => (arr || []).join('\n');
+    const textToQueries = (text) => text.split('\n').map(s => s.trim()).filter(Boolean);
+
     if (!settings) return <div className="p-6">Loading...</div>;
 
     return (
@@ -107,11 +129,50 @@ const BotSettingsModal = ({ botId, onClose }) => {
                         />
                     </div>
 
+                    {/* IMP S7 — Multi-query sweep */}
                     <div>
-                        <Label className="font-semibold">🔍 Search Query</Label>
+                        <div className="flex items-center justify-between mb-1">
+                            <Label className="font-semibold">🔍 Search Queries</Label>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-400">
+                                    {(settings.searchQueries || []).length} queries · one per line
+                                </span>
+                                <button
+                                    type="button"
+                                    className="text-xs text-purple-600 hover:text-purple-800 underline"
+                                    onClick={() => setSettings({ ...settings, searchQueries: [...RECOMMENDED_QUERIES] })}
+                                >
+                                    Use recommended tech set
+                                </button>
+                                <button
+                                    type="button"
+                                    className="text-xs text-gray-400 hover:text-gray-600 underline"
+                                    onClick={() => setSettings({ ...settings, searchQueries: [] })}
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                        <textarea
+                            className="input-field w-full font-mono text-sm"
+                            rows={8}
+                            placeholder={"software developer\nweb developer\nmobile app developer\n..."}
+                            value={queriesToText(settings.searchQueries)}
+                            onChange={(e) => setSettings({ ...settings, searchQueries: textToQueries(e.target.value) })}
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                            The bot sweeps ALL queries in one cycle — great for broad tech trend analysis.
+                            Leave blank to use the legacy single Search Query below.
+                        </p>
+                    </div>
+
+                    {/* Legacy single query — used only if searchQueries is empty */}
+                    <div>
+                        <Label className="font-semibold text-gray-400">🔍 Search Query (legacy fallback)</Label>
                         <input
                             type="text"
-                            className="input-field w-full"
+                            className="input-field w-full text-gray-400"
+                            placeholder="Only used if Search Queries above is empty"
                             value={settings.searchQuery}
                             onChange={handleText('searchQuery')}
                         />
