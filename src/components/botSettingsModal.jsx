@@ -84,12 +84,11 @@ const BotSettingsModal = ({ botId, onClose }) => {
     // rather than fuzzy-matching keywords against job text.
     // To add a category: go to upwork.com → search → apply category filter → copy the URL.
     const RECOMMENDED_QUERIES = [
-        // ── Upwork main categories (category2_uid URLs) ──
-        'https://www.upwork.com/nx/search/jobs/?category2_uid=531770282580668419', // Web, Mobile & Software Dev
-        'https://www.upwork.com/nx/search/jobs/?category2_uid=531770282580668416', // Design & Creative
-        'https://www.upwork.com/nx/search/jobs/?category2_uid=531770282580668415', // IT & Networking
+        // ── Upwork main categories (category2_uid URLs — verified from upwork.com) ──
+        'https://www.upwork.com/nx/search/jobs/?category2_uid=531770282580668418', // Web, Mobile & Software Dev
+        'https://www.upwork.com/nx/search/jobs/?category2_uid=531770282580668421', // Design & Creative
+        'https://www.upwork.com/nx/search/jobs/?category2_uid=531770282580668419', // IT & Networking
         'https://www.upwork.com/nx/search/jobs/?category2_uid=531770282580668420', // Data Science & Analytics
-        'https://www.upwork.com/nx/search/jobs/?category2_uid=1484136989232549888', // AI & Machine Learning
         'https://www.upwork.com/nx/search/jobs/?category2_uid=531770282580668422', // Sales & Marketing
     ];
 
