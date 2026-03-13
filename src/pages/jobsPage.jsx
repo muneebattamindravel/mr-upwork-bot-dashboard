@@ -107,7 +107,7 @@ const JobsPage = () => {
   const [profiles, setProfiles]           = useState([]);
 
   useEffect(() => {
-    axios.get('/kb/list').then(r => setProfiles(r.data?.data || [])).catch(() => {});
+    axios.get('/kb/list').then(r => setProfiles(r.data?.data?.profiles || [])).catch(() => {});
   }, []);
 
   const toggleSec = k => setSections(p => ({ ...p, [k]: !p[k] }));
