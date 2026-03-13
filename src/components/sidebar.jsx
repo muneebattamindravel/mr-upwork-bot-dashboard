@@ -2,14 +2,12 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   BookOpen,
-  BarChart,
   BarChart2,
   Briefcase,
-  Settings,
+  Bell,
   Monitor,
   Sliders,
   X,
-  Brain,
   FlaskConical,
 } from 'lucide-react';
 
@@ -87,17 +85,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       </NavLink>
 
       <NavLink
-        to="/sraa-settings"
-        className={({ isActive }) =>
-          `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
-        }
-        onClick={() => setIsOpen(false)}
-      >
-        <Brain className="w-5 h-5" />
-        SRAA Settings
-      </NavLink>
-
-      <NavLink
         to="/playground"
         className={({ isActive }) =>
           `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
@@ -115,8 +102,8 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         }
         onClick={() => setIsOpen(false)}
       >
-        <BarChart className="w-5 h-5" />
-        Global Settings
+        <Bell className="w-5 h-5" />
+        Notification Settings
       </NavLink>
     </nav>
   );

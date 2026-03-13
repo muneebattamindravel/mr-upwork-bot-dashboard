@@ -13,7 +13,6 @@ import RelevanceSettings from './pages/relevanceSettings';
 import NotFound from './pages/notFound';
 import GlobalSettings from './pages/GlobalSettings';
 import AnalyticsPage from './pages/analyticsPage';
-import SRAASettings from './pages/SRAASettings';
 import Playground from './pages/Playground';
 
 const App = () => {
@@ -79,6 +78,9 @@ const App = () => {
             }
           />
 
+          {/* /sraa-settings redirects to the merged relevance settings page */}
+          <Route path="/sraa-settings" element={<Navigate to="/relevanceSettings" />} />
+
           <Route
             path="/globalSettings"
             element={
@@ -96,17 +98,6 @@ const App = () => {
               <PrivateRoute>
                 <Layout>
                   <AnalyticsPage />
-                </Layout>
-              </PrivateRoute>
-            }
-          />
-
-          <Route
-            path="/sraa-settings"
-            element={
-              <PrivateRoute>
-                <Layout>
-                  <SRAASettings />
                 </Layout>
               </PrivateRoute>
             }

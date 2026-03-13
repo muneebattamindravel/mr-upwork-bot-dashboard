@@ -17,7 +17,7 @@ const GlobalSettings = () => {
       setSettings(res.data.data);
     } catch (err) {
       console.error('Failed to load settings', err);
-      toast.error('Failed to fetch global settings');
+      toast.error('Failed to fetch notification settings');
     }
   };
 
@@ -37,7 +37,7 @@ const GlobalSettings = () => {
     setLoading(true);
     try {
       await updateSettings(settings);
-      toast.success('✅ Global settings saved!');
+      toast.success('✅ Notification settings saved!');
     } catch (err) {
       toast.error('❌ Failed to save settings');
       console.error(err);
@@ -47,32 +47,10 @@ const GlobalSettings = () => {
 
   return (
     <div className="p-4 max-w-screen-xl w-full space-y-6 mx-auto">
-      <h1 className="text-2xl font-semibold mb-4">⚙️ System-Wide Settings</h1>
+      <h1 className="text-2xl font-semibold mb-4">🔔 Notification Settings</h1>
 
       {settings ? (
         <div className="card space-y-6">
-
-          <div className="flex justify-between items-center">
-            <Label className="field-label">🧠 Use Semantic Search For Jobs?</Label>
-            <Switch
-              checked={settings.useSemanticSearch}
-              onCheckedChange={handleSwitch('useSemanticSearch')}
-            />
-          </div>
-
-          <div>
-            <Label className="field-label">🎚️ Semantic Search Min Static Score</Label>
-            <input
-              type="number"
-              min={0}
-              max={100}
-              className="input-field w-24"
-              value={settings.semanticMinStaticScore}
-              onChange={(e) =>
-                handleSettingChange('semanticMinStaticScore', Number(e.target.value))
-              }
-            />
-          </div>
 
           <div className="flex justify-between items-center">
             <Label className="field-label">🛰️ Enable Bot Alerts</Label>
@@ -131,7 +109,7 @@ const GlobalSettings = () => {
         </div>
       ) : (
         <div className="p-4 bg-white rounded shadow text-gray-600">
-          Loading global settings...
+          Loading notification settings...
         </div>
       )}
     </div>
