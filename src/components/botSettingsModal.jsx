@@ -79,22 +79,18 @@ const BotSettingsModal = ({ botId, onClose }) => {
     };
 
     // IMP S7 helpers
+    // Each line = either a keyword (bot builds URL) OR a full Upwork category URL.
+    // Category URLs use Upwork's category2_uid param — matches the exact taxonomy Upwork uses
+    // rather than fuzzy-matching keywords against job text.
+    // To add a category: go to upwork.com → search → apply category filter → copy the URL.
     const RECOMMENDED_QUERIES = [
-        'software developer',
-        'web developer',
-        'mobile app developer',
-        'frontend developer',
-        'backend developer',
-        'UI UX designer',
-        'graphic designer',
-        'video editor animation',
-        '3D designer',
-        'machine learning AI developer',
-        'data analyst scientist',
-        'cloud DevOps engineer',
-        'game developer',
-        'blockchain developer',
-        'cybersecurity',
+        // ── Upwork main categories (category2_uid URLs) ──
+        'https://www.upwork.com/nx/search/jobs/?category2_uid=531770282580668419', // Web, Mobile & Software Dev
+        'https://www.upwork.com/nx/search/jobs/?category2_uid=531770282580668416', // Design & Creative
+        'https://www.upwork.com/nx/search/jobs/?category2_uid=531770282580668415', // IT & Networking
+        'https://www.upwork.com/nx/search/jobs/?category2_uid=531770282580668420', // Data Science & Analytics
+        'https://www.upwork.com/nx/search/jobs/?category2_uid=1484136989232549888', // AI & Machine Learning
+        'https://www.upwork.com/nx/search/jobs/?category2_uid=531770282580668422', // Sales & Marketing
     ];
 
     const queriesToText = (arr) => (arr || []).join('\n');
@@ -161,8 +157,9 @@ const BotSettingsModal = ({ botId, onClose }) => {
                             onChange={(e) => setSettings({ ...settings, searchQueries: textToQueries(e.target.value) })}
                         />
                         <p className="text-xs text-gray-400 mt-1">
-                            The bot sweeps ALL queries in one cycle — great for broad tech trend analysis.
-                            Leave blank to use the legacy single Search Query below.
+                            Each line = a <strong>keyword</strong> (e.g. <code>react developer</code>) or a full <strong>Upwork category URL</strong>.<br />
+                            Category URLs are more accurate — to get one: go to upwork.com → search → apply a category filter → copy the URL from your browser.<br />
+                            The bot sweeps ALL entries in one cycle. Leave blank to use legacy Search Query below.
                         </p>
                     </div>
 
