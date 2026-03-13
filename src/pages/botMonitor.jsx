@@ -20,9 +20,17 @@ import BotSettingsModal from '../components/botSettingsModal';
 const REFRESH_INTERVAL = 15000;
 
 // Socket.IO connection URL
-// VITE_API_URL = "https://server.com/up-bot-brain-api" → origin = "https://server.com"
-const API_URL       = import.meta.env.VITE_API_URL || '';
-const SOCKET_ORIGIN = API_URL ? new URL(API_URL).origin : window.location.origin;
+// If VITE_API_URL is absolute (http://host/path) extract the origin.
+// If it's relative (/up-bot-brain-api) the brain is on the same host — use window.location.origin.
+const API_URL = import.meta.env.VITE_API_URL || '';
+const SOCKET_ORIGIN = (() => {
+  try {
+    const u = new URL(API_URL);           // throws if relative
+    return u.origin;                      // "https://server.com"
+  } catch {
+    return window.location.origin;        // relative URL → same host as dashboard
+  }
+})();
 
 const BotMonitor = () => {
   const [bots, setBots]                       = useState([]);
