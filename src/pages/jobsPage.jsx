@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectItem, SelectTrigger, SelectContent, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -43,6 +43,10 @@ const OPERATORS = [
   { value:'<=',  label:'≤' },
 ];
 
+// ── All helper components defined OUTSIDE JobsPage so they have stable identity ──
+// (defining components inside a parent component causes React to unmount/remount
+//  them on every parent render, which breaks Radix UI Select's internal state)
+
 const FilterSection = ({ title, open, onToggle, children }) => (
   <div className="border rounded-lg overflow-hidden">
     <button type="button" onClick={onToggle}
@@ -63,6 +67,16 @@ const FF = ({ label, children }) => (
     <Label className="field-label">{label}</Label>
     {children}
   </div>
+);
+
+// onSel: (name, value) => void
+const Sel = ({ name, value, options, onSel }) => (
+  <Select value={value} onValueChange={v => onSel(name, v)}>
+    <SelectTrigger className="select-trigger"><SelectValue placeholder="any" /></SelectTrigger>
+    <SelectContent className="select-content bg-white text-black">
+      {options.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+    </SelectContent>
+  </Select>
 );
 
 const OpInput = ({ opName, opVal, inputName, inputVal, onSel, onChange }) => (
@@ -177,15 +191,6 @@ const JobsPage = () => {
   const activeCnt = Object.entries(filters).filter(([k,v]) =>
     k!=='startDate' && k!=='endDate' && v!==''&&v!=='any'&&v!==null&&v!==undefined).length;
 
-  const Sel = ({ name, value, options }) => (
-    <Select value={value} onValueChange={v => handleSel(name, v)}>
-      <SelectTrigger className="select-trigger"><SelectValue placeholder="any" /></SelectTrigger>
-      <SelectContent className="select-content bg-white text-black">
-        {options.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-      </SelectContent>
-    </Select>
-  );
-
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
@@ -238,11 +243,15 @@ const JobsPage = () => {
           {/* Basic */}
           <FilterSection title="📋 Basic" open={sections.basic} onToggle={() => toggleSec('basic')}>
             <FF label="📅 Date Range">
-              <Sel name="dateRange_ui" value={dateRange} options={[
-                {value:'last24h',label:'Last 24h'},{value:'last3d',label:'Last 3 days'},
-                {value:'last7d',label:'Last 7 days'},{value:'last30d',label:'Last 30 days'},
-                {value:'all',label:'All Time'},{value:'custom',label:'Custom'},
-              ]} />
+              <Select value={dateRange} onValueChange={v => { setDateRange(v); if (v !== 'custom') applyDateRange(v); }}>
+                <SelectTrigger className="select-trigger"><SelectValue placeholder="any" /></SelectTrigger>
+                <SelectContent className="select-content bg-white text-black">
+                  {[{value:'last24h',label:'Last 24h'},{value:'last3d',label:'Last 3 days'},
+                    {value:'last7d',label:'Last 7 days'},{value:'last30d',label:'Last 30 days'},
+                    {value:'all',label:'All Time'},{value:'custom',label:'Custom'}]
+                    .map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </FF>
             {dateRange === 'custom' && <>
               <FF label="Start Date"><Input type="date" name="startDate" value={filters.startDate} onChange={handleChange} className="input-field" /></FF>
@@ -252,12 +261,12 @@ const JobsPage = () => {
               <Input name="keyword" value={filters.keyword} onChange={handleChange} className="input-field" placeholder="Title, description..." />
             </FF>
             <FF label="💼 Job Type">
-              <Sel name="pricingModel" value={filters.pricingModel} options={[
+              <Sel name="pricingModel" value={filters.pricingModel} onSel={handleSel} options={[
                 {value:'any',label:'Any'},{value:'fixed',label:'Fixed Price'},{value:'hourly',label:'Hourly'}
               ]} />
             </FF>
             <FF label="🎓 Experience Level">
-              <Sel name="experienceLevel" value={filters.experienceLevel} options={[
+              <Sel name="experienceLevel" value={filters.experienceLevel} onSel={handleSel} options={[
                 {value:'any',label:'Any'},{value:'Entry Level',label:'Entry Level'},
                 {value:'Intermediate',label:'Intermediate'},{value:'Expert',label:'Expert'}
               ]} />
@@ -285,23 +294,23 @@ const JobsPage = () => {
               <OpInput opName="avgHourlyRateOp" opVal={filters.avgHourlyRateOp} inputName="avgHourlyRate" inputVal={filters.avgHourlyRate} onSel={handleSel} onChange={handleChange} />
             </FF>
             <FF label="📞 Phone Verified">
-              <Sel name="clientPhoneVerified" value={filters.clientPhoneVerified} options={[{value:'any',label:'Any'},{value:'true',label:'Yes'},{value:'false',label:'No'}]} />
+              <Sel name="clientPhoneVerified" value={filters.clientPhoneVerified} onSel={handleSel} options={[{value:'any',label:'Any'},{value:'true',label:'Yes'},{value:'false',label:'No'}]} />
             </FF>
             <FF label="💳 Payment Verified">
-              <Sel name="clientPaymentVerified" value={filters.clientPaymentVerified} options={[{value:'any',label:'Any'},{value:'true',label:'Yes'},{value:'false',label:'No'}]} />
+              <Sel name="clientPaymentVerified" value={filters.clientPaymentVerified} onSel={handleSel} options={[{value:'any',label:'Any'},{value:'true',label:'Yes'},{value:'false',label:'No'}]} />
             </FF>
           </FilterSection>
 
           {/* Scoring */}
           <FilterSection title="🧠 Scoring & Relevance" open={sections.scoring} onToggle={() => toggleSec('scoring')}>
             <FF label="🏷 Profile Match">
-              <Sel name="profile" value={filters.profile} options={[
+              <Sel name="profile" value={filters.profile} onSel={handleSel} options={[
                 {value:'any',label:'Any Profile'},
                 ...profiles.map(p => ({value:p.profileName,label:p.profileName}))
               ]} />
             </FF>
             <FF label="🤖 AI Verdict">
-              <Sel name="semanticVerdict" value={filters.semanticVerdict} options={[
+              <Sel name="semanticVerdict" value={filters.semanticVerdict} onSel={handleSel} options={[
                 {value:'any',label:'Any'},{value:'Yes',label:'✅ Yes'},
                 {value:'Maybe',label:'🟡 Maybe'},{value:'No',label:'❌ No'}
               ]} />
