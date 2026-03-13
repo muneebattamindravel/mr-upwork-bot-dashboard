@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { io } from 'socket.io-client';
 import {
   getBots,
   startBotRemote,
@@ -14,29 +15,28 @@ import { cn } from '@/lib/utils';
 import { PlayCircle, PauseCircle, Settings, Loader2 } from 'lucide-react';
 import BotSettingsModal from '../components/botSettingsModal';
 
-// How long to wait for a command to be confirmed before giving up (ms)
-const COMMAND_CONFIRM_TIMEOUT = 30000;
-// How often to re-check status while a command is pending (ms)
-const COMMAND_POLL_INTERVAL = 3000;
-// How often to refresh bot list + statuses in background (ms)
-const REFRESH_INTERVAL = 5000;
+// Background refresh interval — only for offline/health detection
+// Running state is updated instantly via socket heartbeats
+const REFRESH_INTERVAL = 15000;
+
+// Socket.IO connection URL
+// VITE_API_URL = "https://server.com/up-bot-brain-api" → origin = "https://server.com"
+const API_URL       = import.meta.env.VITE_API_URL || '';
+const SOCKET_ORIGIN = API_URL ? new URL(API_URL).origin : window.location.origin;
 
 const BotMonitor = () => {
-  const [bots, setBots]                   = useState([]);
-  const [summary, setSummary]             = useState({ total: 0, healthy: 0, stuck: 0, offline: 0 });
-  const [agentStatusMap, setAgentStatusMap] = useState({});
-  // pendingMap: { [botId]: 'starting' | 'stopping' } — optimistic UI while command propagates
-  const [pendingMap, setPendingMap]       = useState({});
-  const [showSettings, setShowSettings]   = useState(false);
-  const [activeBot, setActiveBot]         = useState(null);
+  const [bots, setBots]                       = useState([]);
+  const [summary, setSummary]                 = useState({ total: 0, healthy: 0, stuck: 0, offline: 0 });
+  const [agentStatusMap, setAgentStatusMap]   = useState({});
+  const [pendingMap, setPendingMap]           = useState({});
+  const [showSettings, setShowSettings]       = useState(false);
+  const [activeBot, setActiveBot]             = useState(null);
+  const [socketConnected, setSocketConnected] = useState(false);
 
-  // Refs to safely access latest state inside setInterval callbacks
-  const pendingRef      = useRef({});
-  const agentStatusRef  = useRef({});
-  pendingRef.current    = pendingMap;
-  agentStatusRef.current = agentStatusMap;
+  const pendingRef   = useRef({});
+  pendingRef.current = pendingMap;
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────────
 
   const calculateSummary = (list) => {
     const s = { total: list.length, healthy: 0, stuck: 0, offline: 0 };
@@ -48,40 +48,93 @@ const BotMonitor = () => {
     return s;
   };
 
-  // Fetch agent status for a single bot and update state
-  const refreshStatus = async (botId) => {
-    try {
-      const status = await checkBotStatus(botId);
-      setAgentStatusMap(prev => ({ ...prev, [botId]: status }));
-      return status;
-    } catch {
-      setAgentStatusMap(prev => ({ ...prev, [botId]: 'unknown' }));
-      return 'unknown';
-    }
-  };
-
-  // Full refresh: bot list + all agent statuses
-  const refreshAll = async () => {
+  // Full refresh from API (initial load + 15s fallback poll)
+  const refreshAll = useCallback(async () => {
     try {
       const botList = await getBots();
       setBots(botList);
       setSummary(calculateSummary(botList));
 
-      await Promise.all(botList.map(bot => refreshStatus(bot.botId)));
+      const statusEntries = await Promise.all(
+        botList.map(async (bot) => {
+          try {
+            const status = await checkBotStatus(bot.botId);
+            return [bot.botId, status];
+          } catch {
+            return [bot.botId, 'unknown'];
+          }
+        })
+      );
+      setAgentStatusMap(Object.fromEntries(statusEntries));
     } catch (err) {
-      console.error('[refreshAll] ❌', err.message);
+      console.error('[refreshAll] error:', err.message);
     }
-  };
+  }, []);
 
-  // ── Mount: initial load + polling interval ─────────────────────────────────
+  // ── Socket.IO ────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     refreshAll();
-    const interval = setInterval(refreshAll, REFRESH_INTERVAL);
-    return () => clearInterval(interval);
-  }, []);
+    const pollInterval = setInterval(refreshAll, REFRESH_INTERVAL);
 
-  // ── Command handler ────────────────────────────────────────────────────────
+    const socket = io(SOCKET_ORIGIN, {
+      path: '/up-bot-brain-api/socket.io',
+      reconnection: true,
+      reconnectionDelay: 3000,
+      reconnectionDelayMax: 15000,
+      reconnectionAttempts: Infinity,
+      transports: ['websocket', 'polling'],
+    });
+
+    socket.on('connect', () => {
+      console.log('[Socket] Connected to brain');
+      setSocketConnected(true);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('[Socket] Disconnected from brain');
+      setSocketConnected(false);
+    });
+
+    // Bot sent a heartbeat — update fields and mark as running instantly
+    socket.on('bot:heartbeat', ({ botId, status, message, jobUrl, lastSeen, healthStatus, stats }) => {
+      setBots(prev => prev.map(b =>
+        b.botId === botId
+          ? { ...b, status, message, jobUrl, lastSeen, healthStatus: healthStatus || b.healthStatus, stats: stats || b.stats }
+          : b
+      ));
+      setAgentStatusMap(prev => ({ ...prev, [botId]: 'running' }));
+
+      // Confirm start if dashboard was waiting
+      if (pendingRef.current[botId] === 'starting') {
+        setPendingMap(prev => ({ ...prev, [botId]: null }));
+        toast.success('Bot is now running');
+      }
+    });
+
+    // Agent confirmed it executed the stop command
+    socket.on('bot:command_ack', ({ botId, command, success }) => {
+      if (command === 'stop') {
+        if (success) {
+          setAgentStatusMap(prev => ({ ...prev, [botId]: 'stopped' }));
+          if (pendingRef.current[botId] === 'stopping') {
+            setPendingMap(prev => ({ ...prev, [botId]: null }));
+            toast.success('Bot stopped');
+          }
+        } else {
+          setPendingMap(prev => ({ ...prev, [botId]: null }));
+          toast.error('Stop command failed on agent');
+        }
+      }
+    });
+
+    return () => {
+      clearInterval(pollInterval);
+      socket.disconnect();
+    };
+  }, [refreshAll]);
+
+  // ── Command handler ──────────────────────────────────────────────────────────
 
   const handleToggle = async (bot) => {
     const botId     = bot.botId;
@@ -89,57 +142,52 @@ const BotMonitor = () => {
     const action    = isRunning ? 'stopping' : 'starting';
     const expected  = isRunning ? 'stopped'  : 'running';
 
-    // Optimistically show pending state immediately
     setPendingMap(prev => ({ ...prev, [botId]: action }));
 
     try {
-      const res = isRunning
-        ? await stopBotRemote(botId)
-        : await startBotRemote(botId);
-
-      toast.success(res.message || `Command queued — ${action}...`);
-    } catch (err) {
-      toast.error(`Failed to send command`);
+      const res = isRunning ? await stopBotRemote(botId) : await startBotRemote(botId);
+      toast.success(res.message || 'Command sent');
+    } catch {
+      toast.error('Failed to send command');
       setPendingMap(prev => ({ ...prev, [botId]: null }));
       return;
     }
 
-    // Poll status until it reaches the expected state or we time out
-    const deadline = Date.now() + COMMAND_CONFIRM_TIMEOUT;
-
-    const pollUntilConfirmed = async () => {
-      if (Date.now() > deadline) {
-        toast.warning(`⚠️ Command sent but status didn't confirm within 30s — check agent`);
-        setPendingMap(prev => ({ ...prev, [botId]: null }));
-        return;
+    // Socket handles confirmation instantly.
+    // Safety fallback: if no confirmation in 35s, do one manual check.
+    setTimeout(async () => {
+      if (pendingRef.current[botId]) {
+        try {
+          const status = await checkBotStatus(botId);
+          setAgentStatusMap(prev => ({ ...prev, [botId]: status }));
+          setPendingMap(prev => ({ ...prev, [botId]: null }));
+          if (status === expected) {
+            toast.success('Bot is now ' + expected);
+          } else {
+            toast.warning('Status unclear after 35s — showing latest from brain');
+          }
+        } catch {
+          setPendingMap(prev => ({ ...prev, [botId]: null }));
+        }
       }
-
-      const status = await refreshStatus(botId);
-
-      if (status === expected) {
-        // Confirmed — clear pending state
-        setPendingMap(prev => ({ ...prev, [botId]: null }));
-        toast.success(`✅ Bot is now ${expected}`);
-        // Also refresh the full bot list to pick up healthStatus changes
-        const freshBots = await getBots();
-        setBots(freshBots);
-        setSummary(calculateSummary(freshBots));
-      } else {
-        // Not yet — check again after COMMAND_POLL_INTERVAL
-        setTimeout(pollUntilConfirmed, COMMAND_POLL_INTERVAL);
-      }
-    };
-
-    // Give the agent a moment to pick up the command before first check
-    setTimeout(pollUntilConfirmed, COMMAND_POLL_INTERVAL);
+    }, 35000);
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <div className="p-4 space-y-4">
       <BotSummaryCard summary={summary} />
-      <h1 className="text-2xl font-bold mb-4">🧠 Bot Monitor</h1>
+
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Bot Monitor</h1>
+        <span className={cn(
+          'text-xs font-medium px-2 py-1 rounded-full',
+          socketConnected ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+        )}>
+          {socketConnected ? 'Live' : 'Polling'}
+        </span>
+      </div>
 
       {bots.length === 0 ? (
         <div className="text-center text-gray-500">No bots found.</div>
@@ -147,25 +195,31 @@ const BotMonitor = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {bots.map((bot) => {
             const agentStatus = agentStatusMap[bot.botId];
-            const pending     = pendingMap[bot.botId]; // 'starting' | 'stopping' | undefined
+            const pending     = pendingMap[bot.botId];
             const isRunning   = agentStatus === 'running';
             const isKnown     = agentStatus !== undefined;
-            const isBusy      = !!pending; // disable button while command is in flight
+            const isBusy      = !!pending;
 
-            // What to show in the Agent Status row
             const agentStatusLabel = () => {
-              if (pending === 'starting') return '🟡 Starting...';
-              if (pending === 'stopping') return '🟡 Stopping...';
-              if (!isKnown)              return '⌛ Checking...';
-              if (agentStatus === 'running')  return '🟢 Running';
-              if (agentStatus === 'stopped')  return '🔴 Stopped';
-              return `⚪ ${agentStatus}`;
+              if (pending === 'starting') return 'Starting...';
+              if (pending === 'stopping') return 'Stopping...';
+              if (!isKnown)              return 'Checking...';
+              if (agentStatus === 'running') return 'Running';
+              if (agentStatus === 'stopped') return 'Stopped';
+              return agentStatus;
+            };
+
+            const agentStatusColor = () => {
+              if (pending) return 'text-yellow-600';
+              if (agentStatus === 'running') return 'text-green-600';
+              if (agentStatus === 'stopped') return 'text-red-500';
+              return 'text-gray-500';
             };
 
             return (
               <Card key={bot.botId} className="p-4 shadow-md">
 
-                {/* ── Header: botId + health badge + settings ─────────── */}
+                {/* ── Header ───────────────────────────────────────────── */}
                 <div className="flex justify-between items-center mb-2">
                   <div className="font-bold text-lg">{bot.botId}</div>
                   <div className="flex items-center gap-2">
@@ -186,7 +240,7 @@ const BotMonitor = () => {
                   </div>
                 </div>
 
-                {/* ── Activity status + message ────────────────────────── */}
+                {/* ── Activity status ──────────────────────────────────── */}
                 {(bot.healthStatus === 'healthy' || bot.healthStatus === 'stuck') && (
                   <>
                     <div className="text-sm text-gray-800 mb-1">
@@ -207,11 +261,11 @@ const BotMonitor = () => {
                 {/* ── Stats ────────────────────────────────────────────── */}
                 {bot.stats && (
                   <div className="text-xs text-gray-600 mb-2 space-y-1">
-                    <div>📊 Jobs Scraped: <span className="font-semibold">{bot.stats.jobsScraped ?? 0}</span></div>
-                    <div>⏱️ Active Time: <span className="font-semibold">{formatTime(bot.stats.totalActiveTime)}</span></div>
-                    <div>🛡️ Cloudflare Hurdles: <span className="font-semibold">{bot.stats.cloudflareHurdles ?? 0}</span></div>
-                    <div>✅ Cloudflare Solves: <span className="font-semibold">{bot.stats.cloudflareSolves ?? 0}</span></div>
-                    <div>🔐 Login Hurdles: <span className="font-semibold">{bot.stats.loginHurdles ?? 0}</span></div>
+                    <div>Jobs Scraped: <span className="font-semibold">{bot.stats.jobsScraped ?? 0}</span></div>
+                    <div>Active Time: <span className="font-semibold">{formatTime(bot.stats.totalActiveTime)}</span></div>
+                    <div>Cloudflare Hurdles: <span className="font-semibold">{bot.stats.cloudflareHurdles ?? 0}</span></div>
+                    <div>Cloudflare Solves: <span className="font-semibold">{bot.stats.cloudflareSolves ?? 0}</span></div>
+                    <div>Login Hurdles: <span className="font-semibold">{bot.stats.loginHurdles ?? 0}</span></div>
                   </div>
                 )}
 
@@ -219,8 +273,7 @@ const BotMonitor = () => {
                 <div className="text-xs text-gray-500 mb-1">
                   Last Seen: {formatTime(bot.lastSeen, { ago: true })}
                 </div>
-
-                <div className="text-xs text-gray-500 mb-2 font-medium">
+                <div className={cn('text-xs mb-2 font-medium', agentStatusColor())}>
                   Agent: {agentStatusLabel()}
                 </div>
 
@@ -228,7 +281,7 @@ const BotMonitor = () => {
                 <div className="flex justify-end items-center gap-2">
                   {pending && (
                     <span className="text-xs text-yellow-600 font-medium animate-pulse">
-                      {pending === 'starting' ? 'Starting bot...' : 'Stopping bot...'}
+                      {pending === 'starting' ? 'Starting...' : 'Stopping...'}
                     </span>
                   )}
                   <button
@@ -239,8 +292,8 @@ const BotMonitor = () => {
                       (!isKnown || isBusy) && 'cursor-not-allowed opacity-50'
                     )}
                     title={
-                      !isKnown  ? 'Checking agent status...'
-                        : isBusy  ? `${pending}...`
+                      !isKnown  ? 'Checking...'
+                        : isBusy  ? pending + '...'
                         : isRunning ? 'Stop Bot'
                         : 'Start Bot'
                     }
@@ -282,11 +335,11 @@ const formatTime = (input, opts = { ago: false }) => {
   const seconds = totalSeconds % 60;
 
   const parts = [];
-  if (hours)           parts.push(`${hours}h`);
-  if (minutes || hours) parts.push(`${minutes}m`);
-  parts.push(`${seconds}s`);
+  if (hours)             parts.push(hours + 'h');
+  if (minutes || hours)  parts.push(minutes + 'm');
+  parts.push(seconds + 's');
 
-  return opts.ago ? `${parts.join(' ')} ago` : parts.join(' ');
+  return opts.ago ? parts.join(' ') + ' ago' : parts.join(' ');
 };
 
 export default BotMonitor;
