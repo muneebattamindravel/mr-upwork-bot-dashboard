@@ -208,7 +208,7 @@ const BotMonitor = () => {
       <BotSummaryCard summary={summary} />
 
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Bot Monitor</h1>
+        <h1 className="text-2xl font-bold">Scraper Monitor</h1>
         <span className={cn(
           'text-xs font-medium px-2 py-1 rounded-full',
           socketConnected ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
