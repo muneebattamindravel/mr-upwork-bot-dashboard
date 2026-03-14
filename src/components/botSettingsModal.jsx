@@ -97,6 +97,8 @@ const BotSettingsModal = ({ botId, onClose }) => {
         setSettings({ ...settings, searchQueries: updated });
     };
 
+    const handleBool = (key) => (e) => setSettings({ ...settings, [key]: e.target.checked });
+
     if (!settings) return <div className="p-6">Loading...</div>;
 
     return (
@@ -126,63 +128,89 @@ const BotSettingsModal = ({ botId, onClose }) => {
                         />
                     </div>
 
-                    {/* Category multi-select */}
-                    <div>
-                        <div className="flex items-center justify-between mb-2">
-                            <Label className="font-semibold">🔍 Categories to Target</Label>
-                            <span className="text-xs text-gray-400">
-                                {selectedUrls.size} selected
-                            </span>
+                    {/* Query mode toggle */}
+                    <div className="border border-gray-200 rounded-lg p-4 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <Label className="font-semibold">🔍 Search Mode</Label>
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                    {settings.customQuery
+                                        ? 'Keyword mode — searches by text query'
+                                        : 'Category mode — uses Upwork category URLs'}
+                                </p>
+                            </div>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <span className={`text-xs font-medium ${!settings.customQuery ? 'text-purple-600' : 'text-gray-400'}`}>Category</span>
+                                <div className="relative">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only"
+                                        checked={!!settings.customQuery}
+                                        onChange={handleBool('customQuery')}
+                                    />
+                                    <div className={`w-10 h-5 rounded-full transition-colors ${settings.customQuery ? 'bg-purple-600' : 'bg-gray-300'}`} />
+                                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.customQuery ? 'translate-x-5' : ''}`} />
+                                </div>
+                                <span className={`text-xs font-medium ${settings.customQuery ? 'text-purple-600' : 'text-gray-400'}`}>Keyword</span>
+                            </label>
                         </div>
 
-                        {scraperCategories.length === 0 ? (
-                            <div className="border border-dashed border-gray-300 rounded-lg p-4 text-sm text-gray-500 text-center">
-                                No categories configured yet.{' '}
-                                <span className="text-purple-600 font-medium">
-                                    Go to Settings → 🔧 Scraper Configs
-                                </span>{' '}
-                                to add categories first.
-                            </div>
-                        ) : (
-                            <div className="border border-gray-200 rounded-lg overflow-hidden">
-                                {scraperCategories.map((cat, i) => {
-                                    const isChecked = selectedUrls.has(cat.url);
-                                    return (
-                                        <label
-                                            key={i}
-                                            className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${
-                                                i < scraperCategories.length - 1 ? 'border-b border-gray-100' : ''
-                                            } ${isChecked ? 'bg-purple-50' : 'hover:bg-gray-50'}`}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={isChecked}
-                                                onChange={() => toggleCategory(cat.url)}
-                                                className="accent-purple-600 w-4 h-4 shrink-0"
-                                            />
-                                            <span className="text-sm font-medium text-gray-800">{cat.name}</span>
-                                            <span className="text-xs text-gray-400 truncate ml-auto hidden sm:block" title={cat.url}>
-                                                {cat.url.includes('category2_uid=')
-                                                    ? `uid:${cat.url.split('category2_uid=')[1].split('&')[0]}`
-                                                    : cat.url}
-                                            </span>
-                                        </label>
-                                    );
-                                })}
-                            </div>
-                        )}
-
-                        {/* Legacy fallback — only shown if no categories configured */}
-                        {scraperCategories.length === 0 && (
-                            <div className="mt-3">
-                                <Label className="font-semibold text-gray-400 text-xs">🔍 Fallback: Legacy Search Query</Label>
+                        {settings.customQuery ? (
+                            /* ── Keyword mode ── */
+                            <div>
+                                <Label className="text-sm text-gray-600">Search Query</Label>
                                 <input
                                     type="text"
-                                    className="input-field w-full text-gray-400 mt-1"
-                                    placeholder="Used if no categories selected above"
-                                    value={settings.searchQuery}
+                                    className="input-field w-full mt-1"
+                                    placeholder="e.g. game development, react native, AI engineer"
+                                    value={settings.searchQuery || ''}
                                     onChange={handleText('searchQuery')}
                                 />
+                                <p className="text-xs text-gray-400 mt-1">
+                                    Bot will search: upwork.com/nx/search/jobs/?q=YOUR_QUERY&sort=recency&location_type=worldwide
+                                </p>
+                            </div>
+                        ) : (
+                            /* ── Category mode ── */
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <Label className="text-sm text-gray-600">Categories to Target</Label>
+                                    <span className="text-xs text-gray-400">{selectedUrls.size} selected</span>
+                                </div>
+                                {scraperCategories.length === 0 ? (
+                                    <div className="border border-dashed border-gray-300 rounded-lg p-4 text-sm text-gray-500 text-center">
+                                        No categories configured yet.{' '}
+                                        <span className="text-purple-600 font-medium">Go to Settings → 🔧 Scraper Configs</span>{' '}
+                                        to add categories first.
+                                    </div>
+                                ) : (
+                                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                        {scraperCategories.map((cat, i) => {
+                                            const isChecked = selectedUrls.has(cat.url);
+                                            return (
+                                                <label
+                                                    key={i}
+                                                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${
+                                                        i < scraperCategories.length - 1 ? 'border-b border-gray-100' : ''
+                                                    } ${isChecked ? 'bg-purple-50' : 'hover:bg-gray-50'}`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isChecked}
+                                                        onChange={() => toggleCategory(cat.url)}
+                                                        className="accent-purple-600 w-4 h-4 shrink-0"
+                                                    />
+                                                    <span className="text-sm font-medium text-gray-800">{cat.name}</span>
+                                                    <span className="text-xs text-gray-400 truncate ml-auto hidden sm:block" title={cat.url}>
+                                                        {cat.url.includes('category2_uid=')
+                                                            ? `uid:${cat.url.split('category2_uid=')[1].split('&')[0]}`
+                                                            : cat.url}
+                                                    </span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
