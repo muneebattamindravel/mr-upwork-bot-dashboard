@@ -41,8 +41,10 @@ const BotMonitor = () => {
   const [activeBot, setActiveBot]             = useState(null);
   const [socketConnected, setSocketConnected] = useState(false);
 
-  const pendingRef   = useRef({});
-  pendingRef.current = pendingMap;
+  const pendingRef          = useRef({});
+  pendingRef.current        = pendingMap;
+  // Ref mirror of socketConnected so refreshAll (memoised with []) can read it
+  const socketConnectedRef  = useRef(false);
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -63,17 +65,22 @@ const BotMonitor = () => {
       setBots(botList);
       setSummary(calculateSummary(botList));
 
-      const statusEntries = await Promise.all(
-        botList.map(async (bot) => {
-          try {
-            const status = await checkBotStatus(bot.botId);
-            return [bot.botId, status];
-          } catch {
-            return [bot.botId, 'unknown'];
-          }
-        })
-      );
-      setAgentStatusMap(Object.fromEntries(statusEntries));
+      // When the socket is live it delivers real-time status via bot:heartbeat /
+      // bot:command_ack — polling would only race against those events and cause
+      // the "Stopped → Running" flicker.  Only poll when socket is offline.
+      if (!socketConnectedRef.current) {
+        const statusEntries = await Promise.all(
+          botList.map(async (bot) => {
+            try {
+              const status = await checkBotStatus(bot.botId);
+              return [bot.botId, status];
+            } catch {
+              return [bot.botId, 'unknown'];
+            }
+          })
+        );
+        setAgentStatusMap(Object.fromEntries(statusEntries));
+      }
     } catch (err) {
       console.error('[refreshAll] error:', err.message);
     }
@@ -97,27 +104,40 @@ const BotMonitor = () => {
     socket.on('connect', () => {
       console.log('[Socket] Connected to brain');
       setSocketConnected(true);
+      socketConnectedRef.current = true;
     });
 
     socket.on('disconnect', () => {
       console.log('[Socket] Disconnected from brain');
       setSocketConnected(false);
+      socketConnectedRef.current = false;
     });
 
-    // Bot sent a heartbeat — update fields and mark as running instantly
+    // Bot sent a heartbeat — update fields and mark as running instantly.
+    // Guard: if this window already knows the bot is being stopped, ignore the
+    // 'running' flip — this is the late heartbeat from the dying Electron process.
     socket.on('bot:heartbeat', ({ botId, status, message, jobUrl, lastSeen, healthStatus, stats }) => {
       setBots(prev => prev.map(b =>
         b.botId === botId
           ? { ...b, status, message, jobUrl, lastSeen, healthStatus: healthStatus || b.healthStatus, stats: stats || b.stats }
           : b
       ));
-      setAgentStatusMap(prev => ({ ...prev, [botId]: 'running' }));
+      if (pendingRef.current[botId] !== 'stopping') {
+        setAgentStatusMap(prev => ({ ...prev, [botId]: 'running' }));
+      }
 
       // Confirm start if dashboard was waiting
       if (pendingRef.current[botId] === 'starting') {
         setPendingMap(prev => ({ ...prev, [botId]: null }));
         toast.success('Bot is now running');
       }
+    });
+
+    // Brain broadcasts this when any dashboard window issues a start/stop command.
+    // All open windows (including ones that didn't click the button) update their
+    // pending state so their heartbeat guards work correctly too.
+    socket.on('bot:status_changing', ({ botId, action }) => {
+      setPendingMap(prev => ({ ...prev, [botId]: action }));
     });
 
     // Agent confirmed it executed the stop command
