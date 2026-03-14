@@ -288,12 +288,36 @@ const BotMonitor = () => {
 
                 {/* ── Stats ────────────────────────────────────────────── */}
                 {bot.stats && (
-                  <div className="text-xs text-gray-600 mb-2 space-y-1">
-                    <div>Jobs Scraped: <span className="font-semibold">{bot.stats.jobsScraped ?? 0}</span></div>
-                    <div>Active Time: <span className="font-semibold">{formatTime(bot.stats.totalActiveTime)}</span></div>
-                    <div>Cloudflare Hurdles: <span className="font-semibold">{bot.stats.cloudflareHurdles ?? 0}</span></div>
-                    <div>Cloudflare Solves: <span className="font-semibold">{bot.stats.cloudflareSolves ?? 0}</span></div>
-                    <div>Login Hurdles: <span className="font-semibold">{bot.stats.loginHurdles ?? 0}</span></div>
+                  <div className="text-xs text-gray-600 mb-2 space-y-2">
+
+                    {/* Last cycle */}
+                    <div className="border-t pt-1">
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Last Cycle</div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                        <div>New Jobs: <span className="font-semibold text-green-700">{bot.stats.lastCycleJobsScraped ?? 0}</span></div>
+                        <div>Found: <span className="font-semibold">{bot.stats.lastCycleFeedFound ?? 0}</span></div>
+                        <div>Dupes: <span className="font-semibold">{bot.stats.lastCycleDuplicates ?? 0}</span></div>
+                        <div>Filtered: <span className="font-semibold">{bot.stats.lastCycleFiltered ?? 0}</span></div>
+                      </div>
+                    </div>
+
+                    {/* Lifetime */}
+                    <div className="border-t pt-1">
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Lifetime</div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                        <div>Jobs Scraped: <span className="font-semibold">{bot.stats.jobsScraped ?? 0}</span></div>
+                        <div>Cycles: <span className="font-semibold">{bot.stats.cyclesCompleted ?? 0}</span></div>
+                        <div>Feed Found: <span className="font-semibold">{bot.stats.feedJobsFound ?? 0}</span></div>
+                        <div>Feed Pages: <span className="font-semibold">{bot.stats.feedPagesLoaded ?? 0}</span></div>
+                        <div>Dupes Skipped: <span className="font-semibold">{bot.stats.duplicateJobsSkipped ?? 0}</span></div>
+                        <div>Filtered: <span className="font-semibold">{bot.stats.jobsFiltered ?? 0}</span></div>
+                        <div>Load Errors: <span className="font-semibold text-red-500">{bot.stats.jobLoadErrors ?? 0}</span></div>
+                        <div>Cycle Errors: <span className="font-semibold text-red-500">{bot.stats.cycleErrors ?? 0}</span></div>
+                        <div>CF Solves: <span className="font-semibold">{bot.stats.cloudflareSolves ?? 0}</span></div>
+                        <div>CF Fails: <span className="font-semibold text-red-500">{bot.stats.cloudflareFailures ?? 0}</span></div>
+                      </div>
+                    </div>
+
                   </div>
                 )}
 
