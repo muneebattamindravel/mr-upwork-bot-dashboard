@@ -25,7 +25,8 @@ export const checkBotStatus = async (botId) => {
     timeout: 5000,
   });
 
-  return res.data.data.status;
+  // Returns { agentStatus, scraperStatus, status, agentSeenMs, scraperSeenMs }
+  return res.data.data;
 };
 
 export const getBotSettings = async (botId) => {

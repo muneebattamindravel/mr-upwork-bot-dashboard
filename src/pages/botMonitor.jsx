@@ -257,16 +257,21 @@ const BotCard = ({
   const avgCycleDuration  = bot.avgCycleDurationMs
     ? formatDuration(bot.avgCycleDurationMs) : '—';
 
-  // ── Derive Agent status (is the Electron process alive?) ─────────────────
-  // Source of truth: HTTP check of agent port 4001 (agentStatus prop).
+  // ── Derive Agent status (is the agent.js process alive?) ────────────────
+  // agentStatus prop is now the string from agentStatusData.agentStatus:
+  //   'running' | 'stopped' | 'offline' | 'unknown' | undefined
   // forceStopped=true means we explicitly stopped it — overrides anything else.
   const agentLabel = bot.forceStopped
-    ? { text: 'Stopped',  dot: 'bg-red-500',   tx: 'text-red-600'   }
+    ? { text: 'Stopped',  dot: 'bg-red-500',    tx: 'text-red-600'   }
     : agentStatus === 'running'
-      ? { text: 'Running', dot: 'bg-green-500', tx: 'text-green-700' }
+      ? { text: 'Running',  dot: 'bg-green-500',  tx: 'text-green-700' }
       : agentStatus === 'stopped'
-        ? { text: 'Stopped', dot: 'bg-red-500',  tx: 'text-red-600'  }
-        : { text: 'Checking…', dot: 'bg-gray-400', tx: 'text-gray-500' };
+        ? { text: 'Stopped',  dot: 'bg-red-500',    tx: 'text-red-600'   }
+        : agentStatus === 'offline'
+          ? { text: 'Offline',  dot: 'bg-red-500',    tx: 'text-red-600'   }
+          : agentStatus === 'unknown'
+            ? { text: 'Unknown',  dot: 'bg-yellow-400', tx: 'text-yellow-600' }
+            : { text: 'Checking…',dot: 'bg-gray-400',   tx: 'text-gray-500'  };
 
   // ── Derive Scraper status (what is the scraper doing right now?) ──────────
   // Source of truth: lastSeen recency + bot.status field + healthStatus cron field.
@@ -501,10 +506,11 @@ const BotMonitor = () => {
         const entries = await Promise.all(
           botList.map(async (bot) => {
             try {
-              const status = await checkBotStatus(bot.botId);
-              return [bot.botId, status];
+              // checkBotStatus now returns full { agentStatus, scraperStatus, status, ... }
+              const statusData = await checkBotStatus(bot.botId);
+              return [bot.botId, statusData];
             } catch {
-              return [bot.botId, 'unknown'];
+              return [bot.botId, { agentStatus: 'unknown', scraperStatus: 'stopped' }];
             }
           })
         );
@@ -573,8 +579,12 @@ const BotMonitor = () => {
       }
 
       // Update agent status (guard: don't flip to running if we're stopping this bot)
+      // Heartbeat confirms both agent and scraper are alive
       if (pendingRef.current[botId] !== 'stopping') {
-        setAgentStatusMap(prev => ({ ...prev, [botId]: 'running' }));
+        setAgentStatusMap(prev => ({
+          ...prev,
+          [botId]: { ...(prev[botId] || {}), agentStatus: 'running', scraperStatus: 'running' },
+        }));
       }
       // Confirm start if dashboard was waiting
       if (pendingRef.current[botId] === 'starting') {
@@ -592,7 +602,10 @@ const BotMonitor = () => {
     socket.on('bot:command_ack', ({ botId, command, success }) => {
       if (command === 'stop') {
         if (success) {
-          setAgentStatusMap(prev => ({ ...prev, [botId]: 'stopped' }));
+          setAgentStatusMap(prev => ({
+            ...prev,
+            [botId]: { ...(prev[botId] || {}), agentStatus: 'stopped', scraperStatus: 'stopped' },
+          }));
           if (pendingRef.current[botId] === 'stopping') {
             setPendingMap(prev => ({ ...prev, [botId]: null }));
             toast.success('Bot stopped');
@@ -613,7 +626,7 @@ const BotMonitor = () => {
   // ── Command handler ───────────────────────────────────────────────────────
   const handleToggle = async (bot) => {
     const botId     = bot.botId;
-    const isRunning = agentStatusMap[botId] === 'running';
+    const isRunning = agentStatusMap[botId]?.agentStatus === 'running';
     const action    = isRunning ? 'stopping' : 'starting';
     const expected  = isRunning ? 'stopped'  : 'running';
 
@@ -632,10 +645,10 @@ const BotMonitor = () => {
     setTimeout(async () => {
       if (pendingRef.current[botId]) {
         try {
-          const status = await checkBotStatus(botId);
-          setAgentStatusMap(prev => ({ ...prev, [botId]: status }));
+          const statusData = await checkBotStatus(botId);
+          setAgentStatusMap(prev => ({ ...prev, [botId]: statusData }));
           setPendingMap(prev => ({ ...prev, [botId]: null }));
-          if (status !== expected) toast.warning('Status unclear after 35s — showing latest from brain');
+          if (statusData?.agentStatus !== expected) toast.warning('Status unclear after 35s — showing latest from brain');
         } catch {
           setPendingMap(prev => ({ ...prev, [botId]: null }));
         }
@@ -662,11 +675,12 @@ const BotMonitor = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {bots.map((bot) => {
-            const botOnline    = isBotOnline(bot);
-            const agentStatus  = agentStatusMap[bot.botId];
-            const pending      = pendingMap[bot.botId];
-            const isRunning    = agentStatus === 'running';
-            const isKnown      = agentStatus !== undefined;
+            const botOnline       = isBotOnline(bot);
+            const agentStatusData = agentStatusMap[bot.botId];  // full { agentStatus, scraperStatus }
+            const agentStatus     = agentStatusData?.agentStatus; // string for BotCard
+            const pending         = pendingMap[bot.botId];
+            const isRunning       = agentStatus === 'running';
+            const isKnown         = agentStatusData !== undefined;
             const isBusy       = !!pending;
 
             // Per-bot Live badge: did we receive a socket heartbeat for this bot recently?
