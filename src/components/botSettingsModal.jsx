@@ -89,12 +89,20 @@ const BotSettingsModal = ({ botId, onClose }) => {
     // ── Category multi-select helpers ─────────────────────────────────────────
     const selectedUrls = new Set(settings?.searchQueries || []);
 
-    const toggleCategory = (url) => {
-        const current = settings.searchQueries || [];
-        const updated = current.includes(url)
-            ? current.filter(u => u !== url)
-            : [...current, url];
-        setSettings({ ...settings, searchQueries: updated });
+    const toggleCategory = (cat) => {
+        const currentUrls  = settings.searchQueries     || [];
+        const currentNames = settings.searchQueryNames  || [];
+        const idx = currentUrls.indexOf(cat.url);
+        let updatedUrls, updatedNames;
+        if (idx >= 0) {
+            // Remove — keep names parallel by removing at same index
+            updatedUrls  = currentUrls.filter((_, i) => i !== idx);
+            updatedNames = currentNames.filter((_, i) => i !== idx);
+        } else {
+            updatedUrls  = [...currentUrls,  cat.url];
+            updatedNames = [...currentNames, cat.name];
+        }
+        setSettings({ ...settings, searchQueries: updatedUrls, searchQueryNames: updatedNames });
     };
 
     const handleBool = (key) => (e) => setSettings({ ...settings, [key]: e.target.checked });
@@ -197,7 +205,7 @@ const BotSettingsModal = ({ botId, onClose }) => {
                                                     <input
                                                         type="checkbox"
                                                         checked={isChecked}
-                                                        onChange={() => toggleCategory(cat.url)}
+                                                        onChange={() => toggleCategory(cat)}
                                                         className="accent-purple-600 w-4 h-4 shrink-0"
                                                     />
                                                     <span className="text-sm font-medium text-gray-800">{cat.name}</span>

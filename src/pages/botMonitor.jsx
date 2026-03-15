@@ -81,6 +81,93 @@ const formatTimeAgo = (input) => {
 // IMPORTANT: must be defined at module level, not inside BotMonitor.
 // Defining them inside causes Radix/shadcn to remount on every parent render.
 
+// ── Progress bar ─────────────────────────────────────────────────────────────
+const ProgressBar = ({ pct, color = 'bg-blue-500' }) => (
+  <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+    <div
+      className={cn('h-full rounded-full transition-all duration-500', color)}
+      style={{ width: `${Math.max(0, Math.min(100, pct))}%` }}
+    />
+  </div>
+);
+
+// ── Active cycle progress panel ───────────────────────────────────────────────
+// Shown when bot is online and NOT idle — displays cycle #, category and job progress
+const ActiveProgressPanel = ({ bot, opCfg, pending }) => {
+  const p         = bot.currentProgress || {};
+  const cycleNum  = (bot.stats?.cyclesCompleted || 0) + 1;
+  const qIdx      = p.queryIndex  || 0;
+  const qTotal    = p.queryTotal  || 0;
+  const qName     = p.queryName   || (qTotal > 0 ? `Category ${qIdx}` : '');
+  const jIdx      = p.jobIndex    || 0;
+  const jTotal    = p.jobTotal    || 0;
+  const catPct    = qTotal > 0 ? (qIdx / qTotal) * 100 : 0;
+  const jobPct    = jTotal > 0 ? (jIdx / jTotal) * 100 : 0;
+
+  return (
+    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2.5">
+
+      {/* Header: cycle number + status pill */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cycle</span>
+          <span className="text-sm font-extrabold text-slate-800">#{cycleNum}</span>
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+          {opCfg && (
+            <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full', opCfg.bg, opCfg.text)}>
+              {opCfg.label}
+            </span>
+          )}
+          {pending && (
+            <span className="text-xs text-yellow-600 font-semibold animate-pulse">
+              {pending === 'starting' ? 'Starting…' : 'Stopping…'}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Category sweep progress */}
+      {qTotal > 0 && (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-500 font-medium">Category</span>
+            <span className="font-semibold text-slate-700 tabular-nums">
+              {qIdx} / {qTotal}{qName ? <span className="text-slate-500 font-normal"> · {qName}</span> : null}
+            </span>
+          </div>
+          <ProgressBar pct={catPct} color="bg-purple-500" />
+        </div>
+      )}
+
+      {/* Job progress within current category */}
+      {jTotal > 0 && (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-500 font-medium">Job</span>
+            <span className="font-semibold text-slate-700 tabular-nums">{jIdx} / {jTotal}</span>
+          </div>
+          <ProgressBar pct={jobPct} color="bg-blue-500" />
+        </div>
+      )}
+
+      {/* Current job title / message */}
+      {bot.message && (
+        <div className="text-xs text-slate-600 truncate pt-1 border-t border-slate-200 font-medium">
+          {bot.message}
+        </div>
+      )}
+
+      {/* Job URL — muted, truncated */}
+      {bot.jobUrl && (
+        <div className="text-xs text-slate-400 truncate -mt-1">
+          {bot.jobUrl}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SummaryCard = ({ label, value, color }) => {
   const variants = {
     gray:   { bg: 'bg-gray-100',   num: 'text-gray-800',   sub: 'text-gray-600'   },
@@ -172,52 +259,44 @@ const BotCard = ({
         </div>
       </div>
 
-      {/* ── Operational status + live message + current job ────────────────── */}
-      {/* Always shown when bot is online — NOT gated on DB healthStatus */}
+      {/* ── Live activity panel — always shown when online ───────────────── */}
       {botOnline && (
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            {opCfg && (
-              <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', opCfg.bg, opCfg.text)}>
-                {opCfg.label}
-              </span>
-            )}
-            {pending && (
-              <span className="text-xs text-yellow-600 font-medium animate-pulse">
-                {pending === 'starting' ? 'Starting...' : 'Stopping...'}
-              </span>
-            )}
-          </div>
-          {bot.status === 'idle' && idleInfo ? (() => {
-            const remaining = Math.max(0, idleInfo.totalSecs - (Date.now() - idleInfo.receivedAt) / 1000);
-            const remSecs   = Math.ceil(remaining);
-            const m = Math.floor(remSecs / 60);
-            const s = remSecs % 60;
-            const label = m > 0 ? `${m}m ${s}s` : `${s}s`;
-            const pct   = Math.max(0, Math.min(100, (remaining / idleInfo.totalSecs) * 100));
-            return (
-              <div className="space-y-1 mt-0.5">
-                <div className="flex items-center justify-between text-xs text-gray-600">
-                  <span>Next cycle in</span>
-                  <span className="font-semibold tabular-nums text-gray-800">{label}</span>
-                </div>
-                <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-blue-400 rounded-full transition-none"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
+        bot.status === 'idle' && idleInfo ? (
+          /* Idle: countdown to next cycle */
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cycle</span>
+                <span className="text-sm font-extrabold text-slate-800">
+                  #{bot.stats?.cyclesCompleted || 0}
+                </span>
               </div>
-            );
-          })() : bot.message && (
-            <div className="text-xs text-gray-600 break-all line-clamp-2">{bot.message}</div>
-          )}
-          {bot.jobUrl && (
-            <div className="text-xs text-gray-500 truncate">
-              <span className="font-medium text-gray-700">Job:</span> {bot.jobUrl}
+              <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full', opCfg?.bg, opCfg?.text)}>
+                {opCfg?.label || 'Idle'}
+              </span>
             </div>
-          )}
-        </div>
+            {(() => {
+              const remaining = Math.max(0, idleInfo.totalSecs - (Date.now() - idleInfo.receivedAt) / 1000);
+              const remSecs   = Math.ceil(remaining);
+              const m = Math.floor(remSecs / 60);
+              const s = remSecs % 60;
+              const label = m > 0 ? `${m}m ${s}s` : `${s}s`;
+              const pct   = Math.max(0, Math.min(100, (remaining / idleInfo.totalSecs) * 100));
+              return (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500 font-medium">Next cycle in</span>
+                    <span className="font-bold tabular-nums text-slate-800">{label}</span>
+                  </div>
+                  <ProgressBar pct={pct} color="bg-slate-400" />
+                </div>
+              );
+            })()}
+          </div>
+        ) : (
+          /* Active: cycle + category/job progress */
+          <ActiveProgressPanel bot={bot} opCfg={opCfg} pending={pending} />
+        )
       )}
 
       {/* ── Timing section ────────────────────────────────────────────────── */}
@@ -393,7 +472,7 @@ const BotMonitor = () => {
     socket.on('bot:heartbeat', ({
       botId, status, message, jobUrl, lastSeen, healthStatus, forceStopped,
       stats, sessionStartedAt, lastCycleStartedAt, lastCycleEndedAt,
-      lastCycleDurationMs, avgCycleDurationMs,
+      lastCycleDurationMs, avgCycleDurationMs, currentProgress,
     }) => {
       // Record per-bot socket update time for Live/Polling badge
       socketLastSeenRef.current[botId] = Date.now();
@@ -411,6 +490,7 @@ const BotMonitor = () => {
               lastCycleEndedAt:    lastCycleEndedAt    ?? b.lastCycleEndedAt,
               lastCycleDurationMs: lastCycleDurationMs ?? b.lastCycleDurationMs,
               avgCycleDurationMs:  avgCycleDurationMs  ?? b.avgCycleDurationMs,
+              currentProgress:     currentProgress     ?? b.currentProgress,
             }
           : b
       ));
