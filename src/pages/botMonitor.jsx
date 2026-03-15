@@ -117,7 +117,7 @@ const SectionLabel = ({ children }) => (
 
 const BotCard = ({
   bot, botOnline, pending, isRunning, isKnown, isBusy,
-  hasLiveSocket, agentStatus, onToggle, onSettings,
+  hasLiveSocket, agentStatus, idleInfo, onToggle, onSettings,
 }) => {
   const s = bot.stats || {};
 
@@ -188,7 +188,28 @@ const BotCard = ({
               </span>
             )}
           </div>
-          {bot.message && (
+          {bot.status === 'idle' && idleInfo ? (() => {
+            const remaining = Math.max(0, idleInfo.totalSecs - (Date.now() - idleInfo.receivedAt) / 1000);
+            const remSecs   = Math.ceil(remaining);
+            const m = Math.floor(remSecs / 60);
+            const s = remSecs % 60;
+            const label = m > 0 ? `${m}m ${s}s` : `${s}s`;
+            const pct   = Math.max(0, Math.min(100, (remaining / idleInfo.totalSecs) * 100));
+            return (
+              <div className="space-y-1 mt-0.5">
+                <div className="flex items-center justify-between text-xs text-gray-600">
+                  <span>Next cycle in</span>
+                  <span className="font-semibold tabular-nums text-gray-800">{label}</span>
+                </div>
+                <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-400 rounded-full transition-none"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })() : bot.message && (
             <div className="text-xs text-gray-600 break-all line-clamp-2">{bot.message}</div>
           )}
           {bot.jobUrl && (
@@ -297,6 +318,8 @@ const BotMonitor = () => {
   const [pendingMap, setPendingMap] = useState({});
   const [showSettings, setShowSettings] = useState(false);
   const [activeBot, setActiveBot]   = useState(null);
+  // idleInfoMap[botId] = { totalSecs, receivedAt } — set on idle, cleared on any other status
+  const [idleInfoMap, setIdleInfoMap] = useState({});
 
   const pendingRef         = useRef({});
   pendingRef.current       = pendingMap;
@@ -306,10 +329,10 @@ const BotMonitor = () => {
   // Used to show the per-bot Live/Polling badge.
   const socketLastSeenRef  = useRef({});
 
-  // Tick every 5s so timeAgo / isOnline values stay current without full re-renders
+  // Tick every 1s — drives countdown timer when idle + keeps timeAgo/isOnline fresh
   const [, setTick] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setTick(n => n + 1), 5000);
+    const t = setInterval(() => setTick(n => n + 1), 1000);
     return () => clearInterval(t);
   }, []);
 
@@ -391,6 +414,16 @@ const BotMonitor = () => {
             }
           : b
       ));
+
+      // Track idle countdown: parse "Sleeping for X.Xs before next cycle"
+      if (status === 'idle') {
+        const m = message?.match(/Sleeping for ([\d.]+)s/);
+        if (m) {
+          setIdleInfoMap(prev => ({ ...prev, [botId]: { totalSecs: parseFloat(m[1]), receivedAt: Date.now() } }));
+        }
+      } else {
+        setIdleInfoMap(prev => { const n = { ...prev }; delete n[botId]; return n; });
+      }
 
       // Update agent status (guard: don't flip to running if we're stopping this bot)
       if (pendingRef.current[botId] !== 'stopping') {
@@ -505,6 +538,7 @@ const BotMonitor = () => {
                 isBusy={isBusy}
                 hasLiveSocket={hasLiveSocket}
                 agentStatus={agentStatus}
+                idleInfo={idleInfoMap[bot.botId] || null}
                 onToggle={() => handleToggle(bot)}
                 onSettings={() => { setActiveBot(bot); setShowSettings(true); }}
               />
