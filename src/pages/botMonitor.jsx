@@ -107,7 +107,7 @@ const ActiveProgressPanel = ({ bot, opCfg, pending }) => {
   return (
     <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2.5">
 
-      {/* Header: cycle number + status pill */}
+      {/* Row 1: cycle number + status pill */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cycle</span>
@@ -127,16 +127,34 @@ const ActiveProgressPanel = ({ bot, opCfg, pending }) => {
         </div>
       </div>
 
-      {/* Category sweep progress */}
-      {qTotal > 0 && (
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-500 font-medium">Category</span>
-            <span className="font-semibold text-slate-700 tabular-nums">
-              {qIdx} / {qTotal}{qName ? <span className="text-slate-500 font-normal"> · {qName}</span> : null}
+      {/* Row 2: category/query name — always shown when available, prominent tag */}
+      {qName ? (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-400 font-medium flex-shrink-0">
+            {qTotal > 1 ? 'Category' : 'Query'}
+          </span>
+          <span className={cn(
+            'text-xs font-bold px-2.5 py-1 rounded-lg truncate max-w-xs',
+            qTotal > 1
+              ? 'bg-purple-100 text-purple-800'   // category URL mode
+              : 'bg-blue-100 text-blue-800'        // keyword search mode
+          )}>
+            {qName}
+          </span>
+          {qTotal > 1 && (
+            <span className="text-xs text-slate-400 font-medium flex-shrink-0 tabular-nums">
+              {qIdx} / {qTotal}
             </span>
-          </div>
-          <ProgressBar pct={catPct} color="bg-purple-500" />
+          )}
+        </div>
+      ) : (
+        <div className="text-xs text-slate-400 italic">Waiting for category info…</div>
+      )}
+
+      {/* Category sweep progress bar — only shown when multi-category */}
+      {qTotal > 1 && (
+        <div className="space-y-1">
+          <ProgressBar pct={catPct} color="bg-purple-400" />
         </div>
       )}
 
