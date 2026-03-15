@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectItem, SelectTrigger, SelectContent, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
@@ -29,7 +29,7 @@ const defaultFilters = {
   endDate:              format(new Date(), 'yyyy-MM-dd'),
   profile:              'any',
   semanticVerdict:      'any',
-  mainCategory:         '',
+  mainCategory:         [],
   experienceLevel:      'any',
   minRelevanceScore:    '',
 };
@@ -81,6 +81,43 @@ const OI = ({ opName, opVal, inputName, inputVal, onSel, onChange }) => (
   </div>
 );
 
+// Multi-select dropdown with checkboxes
+const MSDropdown = ({ selected, options, onChange, placeholder = 'Any', width = 'w-44' }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+  const toggle = val => {
+    const next = selected.includes(val) ? selected.filter(v => v !== val) : [...selected, val];
+    onChange(next);
+  };
+  const label = selected.length === 0 ? placeholder : selected.length === 1 ? selected[0] : `${selected.length} selected`;
+  return (
+    <div className={`relative ${width}`} ref={ref}>
+      <button type="button" onClick={() => setOpen(p => !p)}
+        className="h-7 w-full text-xs px-2 border border-gray-200 rounded flex items-center justify-between bg-white hover:bg-gray-50 truncate">
+        <span className="truncate text-left">{label}</span>
+        <span className="ml-1 shrink-0 text-gray-400">▾</span>
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 bg-white border border-gray-200 rounded shadow-lg min-w-full max-h-52 overflow-y-auto text-xs">
+          {options.map(o => (
+            <label key={o} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" checked={selected.includes(o)} onChange={() => toggle(o)}
+                className="accent-purple-600 h-3 w-3 shrink-0" />
+              <span className="truncate">{o}</span>
+            </label>
+          ))}
+          {options.length === 0 && <div className="px-3 py-2 text-gray-400">No categories</div>}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const JobsPage = () => {
   const [filters, setFilters]             = useState({ ...defaultFilters });
   const [jobs, setJobs]                   = useState([]);
@@ -114,7 +151,11 @@ const JobsPage = () => {
     try {
       setLoading(true);
       const q = { limit:100, sortBy:sb, sortOrder:so };
-      Object.entries(f).forEach(([k,v]) => { if (v!=='' && v!==null && v!==undefined && v!=='any') q[k]=v; });
+      Object.entries(f).forEach(([k,v]) => {
+        if (v==='' || v===null || v===undefined || v==='any') return;
+        if (Array.isArray(v)) { if (v.length > 0) q[k] = v.join(','); }
+        else q[k] = v;
+      });
       const res = await getFilteredJobs(q);
       const { jobs:j, totalAll:ta, total:t } = res.data.data || {};
       setTotalAll(ta||0); setTotalFiltered(t||0); setJobs(j||[]);
@@ -180,8 +221,11 @@ const JobsPage = () => {
     toast.success(`Exported ${jobs.length} jobs`);
   };
 
-  const activeCnt = Object.entries(filters).filter(([k,v]) =>
-    k!=='startDate' && k!=='endDate' && v!==''&&v!=='any'&&v!==null&&v!==undefined).length;
+  const activeCnt = Object.entries(filters).filter(([k,v]) => {
+    if (k==='startDate'||k==='endDate') return false;
+    if (Array.isArray(v)) return v.length > 0;
+    return v!==''&&v!=='any'&&v!==null&&v!==undefined;
+  }).length;
 
   return (
     <div className="p-4 space-y-3">
@@ -321,11 +365,12 @@ const JobsPage = () => {
                 options={[{value:'any',label:'Any'},{value:'Yes',label:'✅ Yes'},{value:'Maybe',label:'🟡 Maybe'},{value:'No',label:'❌ No'}]} />
             </FI>
             <FI label="Category">
-              <CS name="mainCategory" value={filters.mainCategory || 'any'} onSel={(n, v) => {
-                const u = { ...filters, mainCategory: v === 'any' ? '' : v };
-                setFilters(u); fetchJobs(u);
-              }} width="w-44"
-                options={[{value:'any',label:'Any'}, ...scraperCategories.map(c => ({value: c.name, label: c.name}))]} />
+              <MSDropdown
+                selected={filters.mainCategory}
+                options={scraperCategories.map(c => c.name)}
+                onChange={vals => { const u = { ...filters, mainCategory: vals }; setFilters(u); fetchJobs(u); }}
+                width="w-44"
+              />
             </FI>
             <FI label="Min Score">
               <Input name="minRelevanceScore" type="number" min="0" max="100"
