@@ -151,6 +151,26 @@ const ActiveProgressPanel = ({ bot, opCfg, pending }) => {
         </div>
       )}
 
+      {/* Running cycle totals — 4 big numbers, updated every heartbeat */}
+      <div className="grid grid-cols-4 gap-1 pt-2 border-t border-slate-200">
+        <div className="flex flex-col items-center">
+          <span className="text-lg font-extrabold tabular-nums text-slate-700">{p.found ?? 0}</span>
+          <span className="text-xs text-slate-400 mt-0.5">Found</span>
+        </div>
+        <div className="flex flex-col items-center">
+          <span className={cn('text-lg font-extrabold tabular-nums', (p.newJobs ?? 0) > 0 ? 'text-green-600' : 'text-slate-700')}>{p.newJobs ?? 0}</span>
+          <span className="text-xs text-slate-400 mt-0.5">New</span>
+        </div>
+        <div className="flex flex-col items-center">
+          <span className="text-lg font-extrabold tabular-nums text-slate-700">{p.dupes ?? 0}</span>
+          <span className="text-xs text-slate-400 mt-0.5">Dupes</span>
+        </div>
+        <div className="flex flex-col items-center">
+          <span className="text-lg font-extrabold tabular-nums text-slate-700">{p.filtered ?? 0}</span>
+          <span className="text-xs text-slate-400 mt-0.5">Filtered</span>
+        </div>
+      </div>
+
       {/* Current job title / message */}
       {bot.message && (
         <div className="text-xs text-slate-600 truncate pt-1 border-t border-slate-200 font-medium">
