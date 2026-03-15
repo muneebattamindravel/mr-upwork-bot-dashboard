@@ -565,10 +565,15 @@ const BotMonitor = () => {
       ));
 
       // Track idle countdown: parse "Sleeping for X.Xs before next cycle"
+      // Only record receivedAt on the FIRST idle heartbeat — subsequent idle pings
+      // must NOT reset it or the countdown oscillates back to the full value every 10s.
       if (status === 'idle') {
         const m = message?.match(/Sleeping for ([\d.]+)s/);
         if (m) {
-          setIdleInfoMap(prev => ({ ...prev, [botId]: { totalSecs: parseFloat(m[1]), receivedAt: Date.now() } }));
+          setIdleInfoMap(prev => {
+            if (prev[botId]) return prev; // already tracking — keep original receivedAt
+            return { ...prev, [botId]: { totalSecs: parseFloat(m[1]), receivedAt: Date.now() } };
+          });
         }
       } else {
         setIdleInfoMap(prev => { const n = { ...prev }; delete n[botId]; return n; });
