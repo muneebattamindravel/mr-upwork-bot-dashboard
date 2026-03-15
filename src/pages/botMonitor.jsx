@@ -493,6 +493,27 @@ const BotMonitor = () => {
       const botList = await getBots();
       setBots(botList);
 
+      // Reconstruct idle countdown for bots already in idle state on page load / refresh.
+      // idleInfoMap is ephemeral React state — after a hard refresh or page navigation it's
+      // empty. Re-derive receivedAt from lastCycleEndedAt (persisted in DB) so the bar
+      // resumes from the correct position rather than disappearing entirely.
+      setIdleInfoMap(prev => {
+        const next = { ...prev };
+        botList.forEach(bot => {
+          if (bot.status === 'idle' && !next[bot.botId]) {
+            const m = bot.message?.match(/Sleeping for ([\d.]+)s/);
+            if (m) {
+              // Prefer lastCycleEndedAt (exact cycle-end time); fall back to lastSeen
+              const anchor = bot.lastCycleEndedAt
+                ? new Date(bot.lastCycleEndedAt).getTime()
+                : new Date(bot.lastSeen).getTime();
+              next[bot.botId] = { totalSecs: parseFloat(m[1]), receivedAt: anchor };
+            }
+          }
+        });
+        return next;
+      });
+
       // Always check agent status on the very first page load so the user immediately
       // gets accurate Running/Stopped state regardless of socket connection timing.
       // On subsequent polls: only check when socket is offline to avoid flicker.
