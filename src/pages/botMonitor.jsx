@@ -11,7 +11,7 @@ import {
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { PlayCircle, PauseCircle, Settings, Loader2, Wifi, WifiOff } from 'lucide-react';
+import { PlayCircle, PauseCircle, Settings, Loader2, Wifi, WifiOff, RotateCcw } from 'lucide-react';
 import BotSettingsModal from '../components/botSettingsModal';
 
 // Background refresh — only for initial load + offline health fallback
@@ -458,6 +458,7 @@ const BotMonitor = () => {
   const [pendingMap, setPendingMap] = useState({});
   const [showSettings, setShowSettings] = useState(false);
   const [activeBot, setActiveBot]   = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
   // idleInfoMap[botId] = { totalSecs, receivedAt } — set on idle, cleared on any other status
   const [idleInfoMap, setIdleInfoMap] = useState({});
 
@@ -489,6 +490,7 @@ const BotMonitor = () => {
 
   // ── Full refresh ─────────────────────────────────────────────────────────
   const refreshAll = useCallback(async () => {
+    setRefreshing(true);
     try {
       const botList = await getBots();
       setBots(botList);
@@ -535,6 +537,8 @@ const BotMonitor = () => {
       }
     } catch (err) {
       console.error('[refreshAll]', err.message);
+    } finally {
+      setRefreshing(false);
     }
   }, []);
 
@@ -695,7 +699,17 @@ const BotMonitor = () => {
         <SummaryCard label="Stuck"      value={summary.stuck}   color="yellow" />
       </div>
 
-      <h1 className="text-2xl font-bold">Scraper Monitor</h1>
+      <div className="flex items-center gap-2">
+        <h1 className="text-2xl font-bold">Scraper Monitor</h1>
+        <button
+          onClick={refreshAll}
+          disabled={refreshing}
+          className="p-1.5 rounded-full border hover:bg-gray-100 disabled:opacity-50 transition-colors"
+          title="Hard refresh"
+        >
+          <RotateCcw className={`w-4 h-4 text-purple-700 ${refreshing ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
 
       {bots.length === 0 ? (
         <div className="text-center text-gray-500 py-12">No bots found.</div>

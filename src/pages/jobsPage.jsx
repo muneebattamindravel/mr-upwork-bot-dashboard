@@ -135,6 +135,9 @@ const JobsPage = () => {
     if (name==='clientSpendOp'   && value==='any') u.clientSpend='';
     if (name==='avgHourlyRateOp' && value==='any') u.avgHourlyRate='';
     setFilters(u);
+    // Auto-fetch for all selects except pure operator changes (they need a value too)
+    const operatorOnlyFields = ['clientRatingOp','clientSpendOp','avgHourlyRateOp'];
+    if (!operatorOnlyFields.includes(name)) fetchJobs(u);
   };
 
   const clearFilters = () => {
@@ -254,7 +257,8 @@ const JobsPage = () => {
             </>}
             <FI label="Search">
               <Input name="keyword" value={filters.keyword} onChange={handleChange}
-                className="h-7 text-xs px-2 w-44 border-gray-200" placeholder="keyword..." />
+                onKeyDown={e => { if (e.key === 'Enter') fetchJobs(filters); }}
+                className="h-7 text-xs px-2 w-44 border-gray-200" placeholder="title, description…" />
             </FI>
             <FI label="Type">
               <CS name="pricingModel" value={filters.pricingModel} onSel={handleSel} width="w-24"
