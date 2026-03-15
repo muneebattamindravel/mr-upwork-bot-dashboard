@@ -93,10 +93,12 @@ const JobsPage = () => {
   const [totalAll, setTotalAll]           = useState(0);
   const [totalFiltered, setTotalFiltered] = useState(0);
   const [reprocessing, setReprocessing]   = useState(false);
-  const [profiles, setProfiles]           = useState([]);
+  const [profiles, setProfiles]               = useState([]);
+  const [scraperCategories, setScraperCategories] = useState([]);
 
   useEffect(() => {
     axios.get('/kb/list').then(r => setProfiles(r.data?.data?.profiles || [])).catch(() => {});
+    axios.get('/settings').then(r => setScraperCategories(r.data?.data?.scraperCategories || [])).catch(() => {});
   }, []);
 
   const applyDateRange = (range, cur = filters) => {
@@ -319,9 +321,11 @@ const JobsPage = () => {
                 options={[{value:'any',label:'Any'},{value:'Yes',label:'✅ Yes'},{value:'Maybe',label:'🟡 Maybe'},{value:'No',label:'❌ No'}]} />
             </FI>
             <FI label="Category">
-              <Input name="mainCategory" value={filters.mainCategory} onChange={handleChange}
-                onKeyDown={e => { if (e.key === 'Enter') fetchJobs(filters); }}
-                className="h-7 text-xs px-2 w-44 border-gray-200" placeholder="e.g. Web, Mobile…" />
+              <CS name="mainCategory" value={filters.mainCategory || 'any'} onSel={(n, v) => {
+                const u = { ...filters, mainCategory: v === 'any' ? '' : v };
+                setFilters(u); fetchJobs(u);
+              }} width="w-44"
+                options={[{value:'any',label:'Any'}, ...scraperCategories.map(c => ({value: c.name, label: c.name}))]} />
             </FI>
             <FI label="Min Score">
               <Input name="minRelevanceScore" type="number" min="0" max="100"
