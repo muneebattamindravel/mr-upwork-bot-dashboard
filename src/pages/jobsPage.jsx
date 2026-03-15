@@ -28,7 +28,7 @@ const defaultFilters = {
   startDate:            format(subDays(new Date(), 1), 'yyyy-MM-dd'),
   endDate:              format(new Date(), 'yyyy-MM-dd'),
   profile:              'any',
-  semanticVerdict:      'any',
+  mainCategory:         '',
   experienceLevel:      'any',
   minRelevanceScore:    '',
 };
@@ -313,9 +313,10 @@ const JobsPage = () => {
               <CS name="profile" value={filters.profile} onSel={handleSel} width="w-36"
                 options={[{value:'any',label:'Any'},...profiles.map(p=>({value:p.profileName,label:p.profileName}))]} />
             </FI>
-            <FI label="AI">
-              <CS name="semanticVerdict" value={filters.semanticVerdict} onSel={handleSel} width="w-20"
-                options={[{value:'any',label:'Any'},{value:'Yes',label:'✅ Yes'},{value:'Maybe',label:'🟡 Maybe'},{value:'No',label:'❌ No'}]} />
+            <FI label="Category">
+              <Input name="mainCategory" value={filters.mainCategory} onChange={handleChange}
+                onKeyDown={e => { if (e.key === 'Enter') fetchJobs(filters); }}
+                className="h-7 text-xs px-2 w-44 border-gray-200" placeholder="e.g. Web, Mobile…" />
             </FI>
             <FI label="Min Score">
               <Input name="minRelevanceScore" type="number" min="0" max="100"
