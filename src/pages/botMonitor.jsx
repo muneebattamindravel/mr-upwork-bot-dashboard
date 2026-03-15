@@ -241,7 +241,7 @@ const SectionLabel = ({ children }) => (
 );
 
 const BotCard = ({
-  bot, botOnline, pending, isRunning, isKnown, isBusy,
+  bot, botOnline, pending, isRunning, isAgentUp, isBusy,
   hasLiveSocket, agentStatus, idleInfo, onToggle, onSettings,
 }) => {
   const s = bot.stats || {};
@@ -305,29 +305,57 @@ const BotCard = ({
         </div>
       </div>
 
-      {/* ── Two clear status rows ───────────────────────────────────────────── */}
+      {/* ── Two clear status boxes ──────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-2">
-        {/* Agent status — is the Electron process running? */}
+
+        {/* Agent box — status + start/stop button */}
         <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Agent</div>
-          <div className="flex items-center gap-1.5">
-            <span className={cn('w-2 h-2 rounded-full flex-shrink-0', agentLabel.dot)} />
-            <span className={cn('text-sm font-bold', agentLabel.tx)}>{agentLabel.text}</span>
-            {pending && (
-              <span className="text-xs text-yellow-600 font-medium animate-pulse ml-1">
-                {pending === 'starting' ? 'Starting…' : 'Stopping…'}
-              </span>
-            )}
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className={cn('w-2 h-2 rounded-full flex-shrink-0', agentLabel.dot)} />
+              <span className={cn('text-sm font-bold truncate', agentLabel.tx)}>{agentLabel.text}</span>
+            </div>
+            <button
+              onClick={onToggle}
+              disabled={!isAgentUp || isBusy}
+              className={cn(
+                'flex-shrink-0 text-blue-600 hover:text-blue-800 transition-colors',
+                (!isAgentUp || isBusy) && 'cursor-not-allowed opacity-40'
+              )}
+              title={
+                !isAgentUp  ? 'Agent offline — cannot send command'
+                : isBusy    ? (pending === 'starting' ? 'Starting…' : 'Stopping…')
+                : isRunning ? 'Stop Scraper'
+                : 'Start Scraper'
+              }
+            >
+              {isBusy
+                ? <Loader2 className="w-6 h-6 animate-spin text-yellow-500" />
+                : isRunning
+                  ? <PauseCircle className="w-6 h-6" />
+                  : <PlayCircle className="w-6 h-6" />}
+            </button>
           </div>
+          {pending && (
+            <div className="text-xs text-yellow-600 font-medium animate-pulse mt-1">
+              {pending === 'starting' ? 'Starting…' : 'Stopping…'}
+            </div>
+          )}
         </div>
-        {/* Scraper status — what is the scraper doing? */}
+
+        {/* Scraper box — status + last seen */}
         <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Scraper</div>
           <div className="flex items-center gap-1.5">
             <span className={cn('w-2 h-2 rounded-full flex-shrink-0 animate-pulse', scraperLabel.dot)} />
             <span className={cn('text-sm font-bold truncate', scraperLabel.tx)}>{scraperLabel.text}</span>
           </div>
+          <div className="text-xs text-gray-400 mt-1 truncate">
+            {bot.lastSeen ? formatTimeAgo(bot.lastSeen) : 'Never'}
+          </div>
         </div>
+
       </div>
 
       {/* ── Live activity panel — always shown when online ───────────────── */}
@@ -417,39 +445,6 @@ const BotCard = ({
         </div>
       </div>
 
-      {/* ── Footer: last seen + start/stop button ────────────────────────── */}
-      <div className="flex justify-between items-center pt-2 border-t">
-        <div className="text-xs text-gray-500">
-          Last Seen: {formatTimeAgo(bot.lastSeen)}
-        </div>
-        <div className="flex items-center gap-2">
-          {pending && (
-            <span className="text-xs text-yellow-600 font-medium animate-pulse">
-              {pending === 'starting' ? 'Starting...' : 'Stopping...'}
-            </span>
-          )}
-          <button
-            onClick={onToggle}
-            disabled={!isKnown || isBusy}
-            className={cn(
-              'text-blue-600 hover:text-blue-800 transition-colors',
-              (!isKnown || isBusy) && 'cursor-not-allowed opacity-50'
-            )}
-            title={
-              !isKnown  ? 'Checking...'
-              : isBusy  ? pending + '...'
-              : isRunning ? 'Stop Bot'
-              : 'Start Bot'
-            }
-          >
-            {isBusy
-              ? <Loader2 className="w-8 h-8 animate-spin text-yellow-500" />
-              : isRunning
-                ? <PauseCircle className="w-8 h-8" />
-                : <PlayCircle className="w-8 h-8" />}
-          </button>
-        </div>
-      </div>
     </Card>
   );
 };
@@ -625,10 +620,13 @@ const BotMonitor = () => {
 
   // ── Command handler ───────────────────────────────────────────────────────
   const handleToggle = async (bot) => {
-    const botId     = bot.botId;
-    const isRunning = agentStatusMap[botId]?.agentStatus === 'running';
-    const action    = isRunning ? 'stopping' : 'starting';
-    const expected  = isRunning ? 'stopped'  : 'running';
+    const botId      = bot.botId;
+    const agentIsUp  = agentStatusMap[botId]?.agentStatus === 'running';
+    if (!agentIsUp) return;  // agent offline — button should already be disabled, but safety guard
+    const scraperRunning = isBotOnline(bot);                 // is the scraper currently running?
+    const isRunning  = scraperRunning;
+    const action     = isRunning ? 'stopping' : 'starting';
+    const expected   = isRunning ? 'stopped'  : 'running';
 
     setPendingMap(prev => ({ ...prev, [botId]: action }));
 
@@ -679,9 +677,9 @@ const BotMonitor = () => {
             const agentStatusData = agentStatusMap[bot.botId];  // full { agentStatus, scraperStatus }
             const agentStatus     = agentStatusData?.agentStatus; // string for BotCard
             const pending         = pendingMap[bot.botId];
-            const isRunning       = agentStatus === 'running';
-            const isKnown         = agentStatusData !== undefined;
-            const isBusy       = !!pending;
+            const isRunning       = botOnline;                   // scraper is sending heartbeats
+            const isAgentUp       = agentStatus === 'running';   // agent can accept start/stop commands
+            const isBusy          = !!pending;
 
             // Per-bot Live badge: did we receive a socket heartbeat for this bot recently?
             const hasLiveSocket =
@@ -695,7 +693,7 @@ const BotMonitor = () => {
                 botOnline={botOnline}
                 pending={pending}
                 isRunning={isRunning}
-                isKnown={isKnown}
+                isAgentUp={isAgentUp}
                 isBusy={isBusy}
                 hasLiveSocket={hasLiveSocket}
                 agentStatus={agentStatus}
