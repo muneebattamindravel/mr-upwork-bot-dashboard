@@ -36,6 +36,7 @@ const JobCard = ({ job }) => {
         url,
         postedDate,
         mainCategory,
+        jobCategory,
         experienceLevel,
         projectType,
         requiredConnects,
@@ -228,7 +229,7 @@ const JobCard = ({ job }) => {
             {/* Relevance Summary */}
             <div className="text-xs text-gray-700 space-y-1">
                 <div>
-                    Profile Match: <strong>{profile}</strong>
+                    Matched Profile: <strong>{profile}</strong>
                 </div>
 
                 <div className="flex justify-between items-center">
@@ -310,7 +311,8 @@ const JobCard = ({ job }) => {
 
             {/* Meta Info */}
             <div className="flex flex-wrap text-sm text-gray-600 gap-x-4 gap-y-1 pt-2 border-t mt-2">
-                <div>📂 {mainCategory}</div>
+                {mainCategory && <div>🗂️ {mainCategory}</div>}
+                {jobCategory  && <div>📂 {jobCategory}</div>}
                 <div>⚙️ {experienceLevel}</div>
                 <div>📈 {projectType}</div>
                 <div>🕒 {postedAgo}</div>

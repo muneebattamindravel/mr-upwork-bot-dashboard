@@ -309,8 +309,8 @@ const JobsPage = () => {
             </FI>
             {/* scoring */}
             <div className="w-px h-4 bg-gray-300 mx-1 hidden sm:block" />
-            <FI label="Profile">
-              <CS name="profile" value={filters.profile} onSel={handleSel} width="w-32"
+            <FI label="Matched Profile">
+              <CS name="profile" value={filters.profile} onSel={handleSel} width="w-36"
                 options={[{value:'any',label:'Any'},...profiles.map(p=>({value:p.profileName,label:p.profileName}))]} />
             </FI>
             <FI label="AI">
