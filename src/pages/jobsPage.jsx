@@ -153,7 +153,7 @@ const JobsPage = () => {
       const q = { limit:100, sortBy:sb, sortOrder:so };
       Object.entries(f).forEach(([k,v]) => {
         if (v==='' || v===null || v===undefined || v==='any') return;
-        if (Array.isArray(v)) { if (v.length > 0) q[k] = v.join(','); }
+        if (Array.isArray(v)) { if (v.length > 0) q[k] = v.join('|||'); }
         else q[k] = v;
       });
       const res = await getFilteredJobs(q);
