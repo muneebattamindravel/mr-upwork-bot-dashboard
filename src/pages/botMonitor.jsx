@@ -148,7 +148,7 @@ const ActiveProgressPanel = ({ bot, opCfg, pending }) => {
           )}
         </div>
       ) : (
-        <div className="text-xs text-slate-400 italic">Waiting for category info…</div>
+        <div className="text-xs text-slate-400 italic animate-pulse">Starting cycle…</div>
       )}
 
       {/* Category sweep progress bar — only shown when multi-category */}
@@ -258,20 +258,16 @@ const BotCard = ({
     ? formatDuration(bot.avgCycleDurationMs) : '—';
 
   // ── Derive Agent status (is the agent.js process alive?) ────────────────
-  // agentStatus prop is now the string from agentStatusData.agentStatus:
-  //   'running' | 'stopped' | 'offline' | 'unknown' | undefined
-  // forceStopped=true means we explicitly stopped it — overrides anything else.
-  const agentLabel = bot.forceStopped
-    ? { text: 'Stopped',  dot: 'bg-red-500',    tx: 'text-red-600'   }
-    : agentStatus === 'running'
-      ? { text: 'Running',  dot: 'bg-green-500',  tx: 'text-green-700' }
-      : agentStatus === 'stopped'
-        ? { text: 'Stopped',  dot: 'bg-red-500',    tx: 'text-red-600'   }
-        : agentStatus === 'offline'
-          ? { text: 'Offline',  dot: 'bg-red-500',    tx: 'text-red-600'   }
-          : agentStatus === 'unknown'
-            ? { text: 'Unknown',  dot: 'bg-yellow-400', tx: 'text-yellow-600' }
-            : { text: 'Checking…',dot: 'bg-gray-400',   tx: 'text-gray-500'  };
+  // agentStatus prop: 'running' | 'unknown' | 'offline' | undefined
+  // forceStopped is intentionally NOT used here — it only reflects scraper state,
+  // not agent state. agent.js keeps running even after scraper is stopped.
+  const agentLabel = agentStatus === 'running'
+    ? { text: 'Running',  dot: 'bg-green-500',  tx: 'text-green-700' }
+    : agentStatus === 'offline'
+      ? { text: 'Offline',  dot: 'bg-red-500',    tx: 'text-red-600'   }
+      : agentStatus === 'unknown'
+        ? { text: 'Unknown',  dot: 'bg-yellow-400', tx: 'text-yellow-600' }
+        : { text: 'Checking…',dot: 'bg-gray-400',   tx: 'text-gray-500'  };
 
   // ── Derive Scraper status (what is the scraper doing right now?) ──────────
   // Source of truth: lastSeen recency + bot.status field + healthStatus cron field.
@@ -598,13 +594,15 @@ const BotMonitor = () => {
       setPendingMap(prev => ({ ...prev, [botId]: action }));
     });
 
-    // Agent confirmed it executed the stop command
+    // Agent confirmed it executed the stop command.
+    // Only mark scraperStatus: 'stopped' — agent itself stays running.
     socket.on('bot:command_ack', ({ botId, command, success }) => {
       if (command === 'stop') {
         if (success) {
           setAgentStatusMap(prev => ({
             ...prev,
-            [botId]: { ...(prev[botId] || {}), agentStatus: 'stopped', scraperStatus: 'stopped' },
+            [botId]: { ...(prev[botId] || {}), scraperStatus: 'stopped' },
+            // agentStatus intentionally NOT changed — agent.js keeps running
           }));
           if (pendingRef.current[botId] === 'stopping') {
             setPendingMap(prev => ({ ...prev, [botId]: null }));
