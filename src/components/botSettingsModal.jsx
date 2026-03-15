@@ -256,6 +256,22 @@ const BotSettingsModal = ({ botId, onClose }) => {
                     ))}
 
                     <div>
+                        <Label className="font-semibold">⏸️ Stale Feed Wait (ms)</Label>
+                        <p className="text-xs text-gray-400 mt-0.5 mb-1">
+                            When a full cycle finds 0 new jobs (all dupes), wait this long before retrying.
+                            Default: 300000 (5 min). Prevents hammering a stale feed every ~15s.
+                        </p>
+                        <input
+                            type="number"
+                            className="input-field w-40"
+                            min={0}
+                            max={3600000}
+                            value={settings.staleCycleDelayMs ?? 300000}
+                            onChange={handleInput('staleCycleDelayMs')}
+                        />
+                    </div>
+
+                    <div>
                         <Label className="font-semibold">🧩 Cloudflare Wait Times (ms)</Label>
                         <div className="flex gap-4">
                             <input

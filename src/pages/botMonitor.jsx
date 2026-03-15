@@ -117,7 +117,7 @@ const SectionLabel = ({ children }) => (
 
 const BotCard = ({
   bot, botOnline, pending, isRunning, isKnown, isBusy,
-  hasLiveSocket, onToggle, onSettings,
+  hasLiveSocket, agentStatus, onToggle, onSettings,
 }) => {
   const s = bot.stats || {};
 
@@ -242,10 +242,20 @@ const BotCard = ({
         </div>
       </div>
 
-      {/* ── Footer: last seen + start/stop button ─────────────────────────── */}
+      {/* ── Footer: last seen + agent status + start/stop button ─────────── */}
       <div className="flex justify-between items-center pt-2 border-t">
-        <div className="text-xs text-gray-500">
-          Last Seen: {formatTimeAgo(bot.lastSeen)}
+        <div className="text-xs text-gray-500 space-y-0.5">
+          <div>Last Seen: {formatTimeAgo(bot.lastSeen)}</div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-400">Agent:</span>
+            {!isKnown ? (
+              <span className="text-gray-400">checking...</span>
+            ) : isRunning ? (
+              <span className="text-green-600 font-medium">Running</span>
+            ) : (
+              <span className="text-red-500 font-medium">Stopped</span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {pending && (
@@ -494,6 +504,7 @@ const BotMonitor = () => {
                 isKnown={isKnown}
                 isBusy={isBusy}
                 hasLiveSocket={hasLiveSocket}
+                agentStatus={agentStatus}
                 onToggle={() => handleToggle(bot)}
                 onSettings={() => { setActiveBot(bot); setShowSettings(true); }}
               />
