@@ -308,13 +308,25 @@ const BotCard = ({
       {/* ── Two clear status boxes ──────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-2">
 
-        {/* Agent box — status + start/stop button */}
+        {/* Agent box — status + agent last seen */}
         <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Agent</div>
+          <div className="flex items-center gap-1.5">
+            <span className={cn('w-2 h-2 rounded-full flex-shrink-0', agentLabel.dot)} />
+            <span className={cn('text-sm font-bold truncate', agentLabel.tx)}>{agentLabel.text}</span>
+          </div>
+          <div className="text-xs text-gray-400 mt-1 truncate">
+            {bot.agentLastSeen ? formatTimeAgo(bot.agentLastSeen) : 'Never'}
+          </div>
+        </div>
+
+        {/* Scraper box — status + scraper last seen + start/stop button */}
+        <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Scraper</div>
           <div className="flex items-center justify-between gap-1.5">
             <div className="flex items-center gap-1.5 min-w-0">
-              <span className={cn('w-2 h-2 rounded-full flex-shrink-0', agentLabel.dot)} />
-              <span className={cn('text-sm font-bold truncate', agentLabel.tx)}>{agentLabel.text}</span>
+              <span className={cn('w-2 h-2 rounded-full flex-shrink-0 animate-pulse', scraperLabel.dot)} />
+              <span className={cn('text-sm font-bold truncate', scraperLabel.tx)}>{scraperLabel.text}</span>
             </div>
             <button
               onClick={onToggle}
@@ -337,22 +349,15 @@ const BotCard = ({
                   : <PlayCircle className="w-6 h-6" />}
             </button>
           </div>
-          {pending && (
-            <div className="text-xs text-yellow-600 font-medium animate-pulse mt-1">
-              {pending === 'starting' ? 'Starting…' : 'Stopping…'}
+          <div className="flex items-center justify-between mt-1">
+            <div className="text-xs text-gray-400 truncate">
+              {bot.lastSeen ? formatTimeAgo(bot.lastSeen) : 'Never'}
             </div>
-          )}
-        </div>
-
-        {/* Scraper box — status + last seen */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Scraper</div>
-          <div className="flex items-center gap-1.5">
-            <span className={cn('w-2 h-2 rounded-full flex-shrink-0 animate-pulse', scraperLabel.dot)} />
-            <span className={cn('text-sm font-bold truncate', scraperLabel.tx)}>{scraperLabel.text}</span>
-          </div>
-          <div className="text-xs text-gray-400 mt-1 truncate">
-            {bot.lastSeen ? formatTimeAgo(bot.lastSeen) : 'Never'}
+            {pending && (
+              <div className="text-xs text-yellow-600 font-medium animate-pulse">
+                {pending === 'starting' ? 'Starting…' : 'Stopping…'}
+              </div>
+            )}
           </div>
         </div>
 
