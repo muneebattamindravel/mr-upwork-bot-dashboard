@@ -87,22 +87,31 @@ const BotSettingsModal = ({ botId, onClose }) => {
     };
 
     // ── Category multi-select helpers ─────────────────────────────────────────
-    const selectedUrls = new Set(settings?.searchQueries || []);
+    // Normalise: support both old plain-string entries and new {name, url} objects.
+    const normaliseQueries = (raw) =>
+        (raw || []).map((q, i) =>
+            typeof q === 'string'
+                ? { name: (settings?.searchQueryNames || [])[i] || `Category ${i + 1}`, url: q }
+                : { name: q.name || `Category ${i + 1}`, url: q.url || '' }
+        );
+
+    const currentItems  = normaliseQueries(settings?.searchQueries);
+    const selectedUrls  = new Set(currentItems.map(q => q.url));
 
     const toggleCategory = (cat) => {
-        const currentUrls  = settings.searchQueries     || [];
-        const currentNames = settings.searchQueryNames  || [];
-        const idx = currentUrls.indexOf(cat.url);
-        let updatedUrls, updatedNames;
+        const idx = currentItems.findIndex(q => q.url === cat.url);
+        let updated;
         if (idx >= 0) {
-            // Remove — keep names parallel by removing at same index
-            updatedUrls  = currentUrls.filter((_, i) => i !== idx);
-            updatedNames = currentNames.filter((_, i) => i !== idx);
+            updated = currentItems.filter((_, i) => i !== idx);
         } else {
-            updatedUrls  = [...currentUrls,  cat.url];
-            updatedNames = [...currentNames, cat.name];
+            updated = [...currentItems, { name: cat.name, url: cat.url }];
         }
-        setSettings({ ...settings, searchQueries: updatedUrls, searchQueryNames: updatedNames });
+        // Save as {name, url} objects; also keep searchQueryNames in sync for backward compat
+        setSettings({
+            ...settings,
+            searchQueries:     updated,
+            searchQueryNames:  updated.map(q => q.name),
+        });
     };
 
     const handleBool = (key) => (e) => setSettings({ ...settings, [key]: e.target.checked });

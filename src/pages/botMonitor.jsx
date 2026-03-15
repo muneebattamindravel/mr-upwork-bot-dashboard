@@ -257,50 +257,78 @@ const BotCard = ({
   const avgCycleDuration  = bot.avgCycleDurationMs
     ? formatDuration(bot.avgCycleDurationMs) : '—';
 
+  // ── Derive Agent status (is the Electron process alive?) ─────────────────
+  // Source of truth: HTTP check of agent port 4001 (agentStatus prop).
+  // forceStopped=true means we explicitly stopped it — overrides anything else.
+  const agentLabel = bot.forceStopped
+    ? { text: 'Stopped',  dot: 'bg-red-500',   tx: 'text-red-600'   }
+    : agentStatus === 'running'
+      ? { text: 'Running', dot: 'bg-green-500', tx: 'text-green-700' }
+      : agentStatus === 'stopped'
+        ? { text: 'Stopped', dot: 'bg-red-500',  tx: 'text-red-600'  }
+        : { text: 'Checking…', dot: 'bg-gray-400', tx: 'text-gray-500' };
+
+  // ── Derive Scraper status (what is the scraper doing right now?) ──────────
+  // Source of truth: lastSeen recency + bot.status field + healthStatus cron field.
+  const scraperLabel = (() => {
+    if (bot.forceStopped)               return { text: 'Stopped',  dot: 'bg-red-500',    tx: 'text-red-600'    };
+    if (!botOnline)                     return { text: 'Offline',  dot: 'bg-red-400',    tx: 'text-red-500'    };
+    if (bot.healthStatus === 'stuck')   return { text: 'Stuck',    dot: 'bg-yellow-500', tx: 'text-yellow-700' };
+    if (bot.status === 'idle')          return { text: 'Idle',     dot: 'bg-gray-400',   tx: 'text-gray-600'   };
+    if (bot.status)                     return { text: opCfg?.label || bot.status, dot: 'bg-blue-500', tx: 'text-blue-700' };
+    return                                     { text: 'Online',   dot: 'bg-green-500',  tx: 'text-green-700'  };
+  })();
+
   return (
     <Card className="p-4 shadow-md space-y-3">
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex justify-between items-start gap-2">
+      {/* ── Header: bot ID + gear ───────────────────────────────────────────── */}
+      <div className="flex justify-between items-center gap-2">
         <div className="font-bold text-base truncate">{bot.botId}</div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
-
-          {/* Per-bot data-freshness indicator: Live = recent socket heartbeat */}
+          {/* Socket freshness — small technical indicator */}
           <span className={cn(
             'text-xs font-medium px-1.5 py-0.5 rounded-full flex items-center gap-1',
-            hasLiveSocket ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+            hasLiveSocket ? 'bg-green-50 text-green-600' : 'bg-yellow-50 text-yellow-600'
           )}>
-            {hasLiveSocket
-              ? <Wifi className="w-3 h-3" />
-              : <WifiOff className="w-3 h-3" />}
+            {hasLiveSocket ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
             {hasLiveSocket ? 'Live' : 'Polling'}
           </span>
-
-          {/* Agent connectivity — computed from lastSeen, not DB healthStatus */}
-          <span className={cn(
-            'px-2 py-0.5 rounded-full text-xs font-medium',
-            botOnline ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-          )}>
-            {botOnline ? 'online' : 'offline'}
-          </span>
-
-          {/* Stuck badge — only shown when genuinely stuck, separate from online/offline */}
-          {bot.healthStatus === 'stuck' && (
-            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
-              stuck
-            </span>
-          )}
-
-          <button onClick={onSettings} className="text-gray-400 hover:text-gray-700 ml-1">
+          <button onClick={onSettings} className="text-gray-400 hover:text-gray-700">
             <Settings className="w-4 h-4" />
           </button>
+        </div>
+      </div>
+
+      {/* ── Two clear status rows ───────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-2">
+        {/* Agent status — is the Electron process running? */}
+        <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Agent</div>
+          <div className="flex items-center gap-1.5">
+            <span className={cn('w-2 h-2 rounded-full flex-shrink-0', agentLabel.dot)} />
+            <span className={cn('text-sm font-bold', agentLabel.tx)}>{agentLabel.text}</span>
+            {pending && (
+              <span className="text-xs text-yellow-600 font-medium animate-pulse ml-1">
+                {pending === 'starting' ? 'Starting…' : 'Stopping…'}
+              </span>
+            )}
+          </div>
+        </div>
+        {/* Scraper status — what is the scraper doing? */}
+        <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Scraper</div>
+          <div className="flex items-center gap-1.5">
+            <span className={cn('w-2 h-2 rounded-full flex-shrink-0 animate-pulse', scraperLabel.dot)} />
+            <span className={cn('text-sm font-bold truncate', scraperLabel.tx)}>{scraperLabel.text}</span>
+          </div>
         </div>
       </div>
 
       {/* ── Live activity panel — always shown when online ───────────────── */}
       {botOnline && (
         bot.status === 'idle' && idleInfo ? (
-          /* Idle: countdown to next cycle */
+          /* Idle: countdown + last category scraped */
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -308,10 +336,14 @@ const BotCard = ({
                 <span className="text-sm font-extrabold text-slate-800">
                   #{bot.stats?.cyclesCompleted || 0}
                 </span>
+                {/* Last category name — persists from cycle_complete heartbeat */}
+                {bot.currentProgress?.queryName && (
+                  <span className="text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full truncate max-w-[160px]">
+                    {bot.currentProgress.queryName}
+                  </span>
+                )}
               </div>
-              <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full', opCfg?.bg, opCfg?.text)}>
-                {opCfg?.label || 'Idle'}
-              </span>
+              <span className="text-xs font-semibold text-slate-500">Complete</span>
             </div>
             {(() => {
               const remaining = Math.max(0, idleInfo.totalSecs - (Date.now() - idleInfo.receivedAt) / 1000);
@@ -380,20 +412,10 @@ const BotCard = ({
         </div>
       </div>
 
-      {/* ── Footer: last seen + agent status + start/stop button ─────────── */}
+      {/* ── Footer: last seen + start/stop button ────────────────────────── */}
       <div className="flex justify-between items-center pt-2 border-t">
-        <div className="text-xs text-gray-500 space-y-0.5">
-          <div>Last Seen: {formatTimeAgo(bot.lastSeen)}</div>
-          <div className="flex items-center gap-1">
-            <span className="text-gray-400">Agent:</span>
-            {!isKnown ? (
-              <span className="text-gray-400">checking...</span>
-            ) : isRunning ? (
-              <span className="text-green-600 font-medium">Running</span>
-            ) : (
-              <span className="text-red-500 font-medium">Stopped</span>
-            )}
-          </div>
+        <div className="text-xs text-gray-500">
+          Last Seen: {formatTimeAgo(bot.lastSeen)}
         </div>
         <div className="flex items-center gap-2">
           {pending && (
@@ -461,14 +483,21 @@ const BotMonitor = () => {
     stuck:   bots.filter(b => b.healthStatus === 'stuck').length,
   };
 
+  // Whether this is the very first load (agent status always checked on first load)
+  const isFirstLoadRef = useRef(true);
+
   // ── Full refresh ─────────────────────────────────────────────────────────
   const refreshAll = useCallback(async () => {
     try {
       const botList = await getBots();
       setBots(botList);
 
-      // Only poll agent status when socket is offline (avoids "Stopped→Running" flicker)
-      if (!socketConnectedRef.current) {
+      // Always check agent status on the very first page load so the user immediately
+      // gets accurate Running/Stopped state regardless of socket connection timing.
+      // On subsequent polls: only check when socket is offline to avoid flicker.
+      const shouldCheckAgent = isFirstLoadRef.current || !socketConnectedRef.current;
+      if (shouldCheckAgent) {
+        isFirstLoadRef.current = false;
         const entries = await Promise.all(
           botList.map(async (bot) => {
             try {
