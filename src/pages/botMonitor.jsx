@@ -516,25 +516,21 @@ const BotMonitor = () => {
         return next;
       });
 
-      // Always check agent status on the very first page load so the user immediately
-      // gets accurate Running/Stopped state regardless of socket connection timing.
-      // On subsequent polls: only check when socket is offline to avoid flicker.
-      const shouldCheckAgent = isFirstLoadRef.current || !socketConnectedRef.current;
-      if (shouldCheckAgent) {
-        isFirstLoadRef.current = false;
-        const entries = await Promise.all(
-          botList.map(async (bot) => {
-            try {
-              // checkBotStatus now returns full { agentStatus, scraperStatus, status, ... }
-              const statusData = await checkBotStatus(bot.botId);
-              return [bot.botId, statusData];
-            } catch {
-              return [bot.botId, { agentStatus: 'unknown', scraperStatus: 'stopped' }];
-            }
-          })
-        );
-        setAgentStatusMap(Object.fromEntries(entries));
-      }
+      // Always poll checkBotStatus — the socket connects to the brain (always up),
+      // so socketConnectedRef is always true even when the agent is dead.
+      // Without this poll, a dead agent would never be detected (no heartbeats = no socket events).
+      isFirstLoadRef.current = false;
+      const entries = await Promise.all(
+        botList.map(async (bot) => {
+          try {
+            const statusData = await checkBotStatus(bot.botId);
+            return [bot.botId, statusData];
+          } catch {
+            return [bot.botId, { agentStatus: 'unknown', scraperStatus: 'stopped' }];
+          }
+        })
+      );
+      setAgentStatusMap(Object.fromEntries(entries));
     } catch (err) {
       console.error('[refreshAll]', err.message);
     } finally {
