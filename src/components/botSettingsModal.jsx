@@ -53,8 +53,8 @@ const BotSettingsModal = ({ botId, onClose }) => {
             errors.push('Invalid Wait If Html Is Less Than Threshold');
         if (s.heartbeatInterval < 1000)
             errors.push('Heartbeat interval too low');
-        if (s.perPage <= 0 || s.perPage > 100)
-            errors.push('Jobs per page must be 1–100');
+        if (![10, 20, 50].includes(Number(s.perPage)))
+            errors.push('Jobs per page must be 10, 20, or 50');
 
         if (errors.length > 0) {
             toast.error(`❌ ${errors.join(', ')}`);
@@ -348,12 +348,15 @@ const BotSettingsModal = ({ botId, onClose }) => {
 
                     <div>
                         <Label className="font-semibold">📦 Jobs Per Feed Page</Label>
-                        <input
-                            type="number"
+                        <select
                             className="input-field w-40"
                             value={settings.perPage}
-                            onChange={handleInput('perPage')}
-                        />
+                            onChange={e => setSettings({ ...settings, perPage: Number(e.target.value) })}
+                        >
+                            <option value={10}>10</option>
+                            <option value={20}>20</option>
+                            <option value={50}>50</option>
+                        </select>
                     </div>
 
                     <div className="flex gap-4">
