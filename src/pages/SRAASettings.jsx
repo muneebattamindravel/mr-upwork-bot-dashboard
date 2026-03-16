@@ -158,6 +158,29 @@ export default function SRAASettings() {
           <div className="space-y-8">
             <p className="text-sm text-gray-500">Configure the AI models, retrieval counts, and temperatures used across all three SRAA functions.</p>
 
+            {/* Semantic Toggle — top of page, most important setting */}
+            <div className="flex items-center gap-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+              <label className="flex items-center gap-3 text-sm font-semibold text-purple-800 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={settings.enableSemanticScoring}
+                  onChange={e => set('enableSemanticScoring', e.target.checked)}
+                  className="accent-purple-600 w-5 h-5"
+                />
+                Semantic Analysis Enabled
+              </label>
+              <div className="h-5 w-px bg-purple-300" />
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-purple-700 font-medium whitespace-nowrap">Min Static Score to Trigger:</span>
+                <NumberInput
+                  value={settings.semanticMinStaticScore}
+                  onChange={v => set('semanticMinStaticScore', v)}
+                  min={0}
+                  max={100}
+                />
+              </div>
+            </div>
+
             {/* Scoring */}
             <div>
               <h3 className="text-sm font-bold text-gray-700 mb-4 pb-1 border-b">🎯 Relevance Scoring</h3>
@@ -185,29 +208,6 @@ export default function SRAASettings() {
                 <ModelSelect label="Model" value={settings.playgroundModel} onChange={v => set('playgroundModel', v)} />
                 <NumberInput label="Top-K Projects" value={settings.playgroundTopK} onChange={v => set('playgroundTopK', v)} min={1} max={20} />
                 <TemperatureSlider label="Temperature" value={settings.playgroundTemperature} onChange={v => set('playgroundTemperature', v)} />
-              </div>
-            </div>
-
-            {/* Gate */}
-            <div>
-              <h3 className="text-sm font-bold text-gray-700 mb-4 pb-1 border-b">🔒 Semantic Scoring Gate</h3>
-              <div className="flex flex-wrap gap-8 items-end">
-                <NumberInput
-                  label="Min Static Score to Trigger Semantic"
-                  value={settings.semanticMinStaticScore}
-                  onChange={v => set('semanticMinStaticScore', v)}
-                  min={0}
-                  max={100}
-                />
-                <label className="flex items-center gap-2 text-sm text-gray-700 pb-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={settings.enableSemanticScoring}
-                    onChange={e => set('enableSemanticScoring', e.target.checked)}
-                    className="accent-purple-600 w-4 h-4"
-                  />
-                  Enable Semantic Scoring
-                </label>
               </div>
             </div>
           </div>
