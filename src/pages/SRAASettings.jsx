@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getSraaSettings, updateSraaSettings } from '../apis/sraaSettings';
 import { toast } from 'sonner';
-import { Save, Loader2, RotateCcw } from 'lucide-react';
+import { Save, Loader2, RotateCcw, Copy } from 'lucide-react';
 
 const MODELS = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'];
 
@@ -15,7 +15,17 @@ const TABS = [
 
 const PromptTextarea = ({ label, value, onChange, rows = 18 }) => (
   <div className="flex flex-col gap-1">
-    <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{label}</label>
+    <div className="flex items-center justify-between">
+      <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{label}</label>
+      <button
+        type="button"
+        onClick={() => { navigator.clipboard.writeText(value || ''); toast.success('Copied!'); }}
+        className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+        title="Copy prompt"
+      >
+        <Copy className="w-3 h-3" /> Copy
+      </button>
+    </div>
     <textarea
       className="border border-gray-200 rounded-lg p-3 text-sm font-mono resize-y focus:outline-none focus:ring-2 focus:ring-purple-400 bg-gray-50"
       rows={rows}

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getJobById } from '../apis/jobs';
 import { formatDistanceToNow, format } from 'date-fns';
-import { MapPin, BadgeCheck, PhoneCall, ExternalLink, Copy, Loader2 } from 'lucide-react';
+import { MapPin, BadgeCheck, PhoneCall, Copy, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const copy = (text) => { navigator.clipboard.writeText(text); toast.success('Copied!'); };
@@ -67,13 +67,13 @@ export default function JobDetailPage() {
   }, [id]);
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="flex items-center justify-center py-24">
       <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
     </div>
   );
 
   if (error || !job) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="flex items-center justify-center py-24">
       <div className="text-center text-gray-500">
         <div className="text-4xl mb-3">😕</div>
         <p className="text-lg font-medium">{error || 'Job not found'}</p>
@@ -89,8 +89,7 @@ export default function JobDetailPage() {
   const fmt = (n) => n >= 1_000_000 ? `$${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `$${(n/1_000).toFixed(0)}K` : n ? `$${n}` : '—';
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-5xl mx-auto space-y-5">
+    <div className="p-4 max-w-5xl mx-auto space-y-5">
 
         {/* ── Title card ── */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
@@ -131,10 +130,6 @@ export default function JobDetailPage() {
           )}
 
           <div className="flex gap-2 mt-4">
-            <a href={job.url} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg font-medium">
-              <ExternalLink className="w-4 h-4" /> View on Upwork
-            </a>
             <button onClick={() => copy(job.url)}
               className="inline-flex items-center gap-1.5 px-4 py-2 border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm rounded-lg">
               <Copy className="w-4 h-4" /> Copy URL
@@ -250,7 +245,6 @@ export default function JobDetailPage() {
             </Section>
           </div>
         </div>
-      </div>
     </div>
   );
 }

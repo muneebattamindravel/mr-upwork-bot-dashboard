@@ -118,8 +118,16 @@ const App = () => {
             }
           />
 
-          {/* Standalone shareable job detail — no Layout so it works without login */}
-          <Route path="/jobs/:id" element={<JobDetailPage />} />
+          <Route
+            path="/jobs/:id"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <JobDetailPage />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

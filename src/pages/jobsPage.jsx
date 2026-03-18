@@ -262,7 +262,7 @@ const JobsPage = () => {
   }).length;
 
   const filtersApplied = hasActiveFilters(filters);
-  const pct = totalAll > 0 ? ((jobs.length / totalAll) * 100).toFixed(1) : '0';
+  const pct = totalFiltered > 0 ? ((jobs.length / totalFiltered) * 100).toFixed(1) : '0';
 
   return (
     <div className="p-4 space-y-3">
@@ -468,9 +468,9 @@ const JobsPage = () => {
             <span className="text-gray-500 font-medium">{totalAll.toLocaleString()}</span>
             <span className="text-gray-400 text-xs ml-1 font-normal">total</span>
           </div>
-          {totalAll > 0 && (
+          {totalFiltered > 0 && (
             <span className="text-xs px-2 py-0.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-full font-medium">
-              {pct}% of all jobs
+              {pct}% of filtered
             </span>
           )}
           {filtersApplied ? (
