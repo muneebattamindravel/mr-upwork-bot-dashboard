@@ -8,10 +8,11 @@ export const getTopCategories            = (limit = 10)           => axios.get('
 export const getProfileBreakdown         = ()                     => axios.get('/analytics/profile-breakdown');
 export const getPricingSplit             = ()                     => axios.get('/analytics/pricing-split');
 export const getEmergingKeywords         = (days = 7, limit = 20) => axios.get('/analytics/emerging-keywords',    { params: { days, limit } });
-export const getPostingHeatmap           = (days = 30)            => axios.get('/analytics/posting-heatmap',      { params: { days } });
+export const getPostingHeatmap           = (days = 30, countries = []) => axios.get('/analytics/posting-heatmap', { params: { days, ...(countries.length ? { countries: countries.join(',') } : {}) } });
 export const getHourlyDistribution       = (days = 30)            => axios.get('/analytics/hourly-distribution',  { params: { days } });
 export const getSemanticVerdictBreakdown = ()                     => axios.get('/analytics/semantic-verdict');
 export const getBudgetDistribution       = ()                     => axios.get('/analytics/budget-distribution');
 export const getExperienceBreakdown      = ()                     => axios.get('/analytics/experience-breakdown');
 export const getCategoriesByCountry      = (countries = 8, cats = 5) => axios.get('/analytics/categories-by-country', { params: { countries, cats } });
 export const getKeywordsByCategory       = (limit = 10)           => axios.get('/analytics/keywords-by-category', { params: { limit } });
+export const getMainCategoryBreakdown    = ()                     => axios.get('/analytics/main-category-breakdown');

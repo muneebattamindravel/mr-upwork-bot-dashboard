@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -8,13 +8,29 @@ import {
   getTopCategories, getProfileBreakdown, getPricingSplit, getEmergingKeywords,
   getPostingHeatmap, getHourlyDistribution, getSemanticVerdictBreakdown,
   getBudgetDistribution, getExperienceBreakdown,
-  getCategoriesByCountry, getKeywordsByCategory,
+  getCategoriesByCountry, getKeywordsByCategory, getMainCategoryBreakdown,
 } from '../apis/analytics';
 import { toast } from 'sonner';
 import { Loader2, Maximize2, X } from 'lucide-react';
 
 const COLORS = ['#7c3aed','#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#84cc16','#f97316','#ec4899'];
 const DAYS   = [' Mon',' Tue',' Wed',' Thu',' Fri',' Sat',' Sun'];
+
+// ── Pakistan Standard Time helpers (UTC+5, no DST) ───────────────────────────
+const PKT_OFFSET = 5;
+const utcToPkt = (utcHour) => (utcHour + PKT_OFFSET) % 24;
+const pktLabel = (utcHour) => {
+  const h = utcToPkt(utcHour);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}${ampm}`;
+};
+const pktFullLabel = (utcHour) => {
+  const h = utcToPkt(utcHour);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:00 ${ampm} PKT`;
+};
 
 // ── Stat Card ─────────────────────────────────────────────────────────────────
 const StatCard = ({ label, value, sub }) => (
@@ -44,7 +60,7 @@ const ChartCard = ({ title, loading, onExpand, children }) => (
   </div>
 );
 
-// ── Expand Modal — renders content reactively from parent state via renderFn ──
+// ── Expand Modal ───────────────────────────────────────────────────────────────
 const ExpandModal = ({ title, onClose, children }) => (
   <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
     <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
@@ -59,90 +75,140 @@ const ExpandModal = ({ title, onClose, children }) => (
   </div>
 );
 
-// ── Heatmap ───────────────────────────────────────────────────────────────────
-const PostingHeatmap = ({ data }) => {
-  if (!data || data.length === 0) return <p className="text-sm text-gray-400 text-center py-8">No data</p>;
-  const max  = Math.max(...data.map(d => d.count), 1);
-  const cell = (count) => {
-    const pct = count / max;
-    if (pct === 0) return 'bg-gray-100';
-    if (pct < 0.2)  return 'bg-purple-100';
-    if (pct < 0.4)  return 'bg-purple-200';
-    if (pct < 0.6)  return 'bg-purple-400';
-    if (pct < 0.8)  return 'bg-purple-600';
-    return 'bg-purple-800';
-  };
+// ── Country multi-select for heatmap filter ────────────────────────────────────
+const CountryMultiSelect = ({ options, selected, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+  const toggle = (v) => onChange(selected.includes(v) ? selected.filter(c => c !== v) : [...selected, v]);
+  const label = selected.length === 0 ? 'All Countries' : selected.length === 1 ? selected[0] : `${selected.length} countries`;
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={() => setOpen(p => !p)}
+        className="h-7 text-xs px-2.5 border border-gray-200 rounded bg-white hover:bg-gray-50 flex items-center gap-1.5 min-w-[130px] justify-between">
+        <span className="truncate">{label}</span>
+        <span className="text-gray-400 shrink-0">▾</span>
+      </button>
+      {open && (
+        <div className="absolute z-50 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg min-w-full max-h-48 overflow-y-auto text-xs">
+          <label className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer border-b">
+            <input type="checkbox" checked={selected.length === 0} onChange={() => onChange([])}
+              className="accent-purple-600 h-3 w-3" />
+            <span className="font-medium">All Countries</span>
+          </label>
+          {options.map(c => (
+            <label key={c} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer">
+              <input type="checkbox" checked={selected.includes(c)} onChange={() => toggle(c)}
+                className="accent-purple-600 h-3 w-3" />
+              <span>{c}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
+// ── Heatmap (green colour scheme, PKT times, country filter) ──────────────────
+const PostingHeatmap = ({ data, countryOptions, selectedCountries, onCountriesChange, heatmapLoading }) => {
+  const max = data && data.length ? Math.max(...data.map(d => d.count), 1) : 1;
+  const cellStyle = (count) => {
+    if (!count) return { backgroundColor: '#f3f4f6' };
+    const pct = count / max;
+    if (pct < 0.15) return { backgroundColor: '#fef9c3' };
+    if (pct < 0.30) return { backgroundColor: '#fde68a' };
+    if (pct < 0.50) return { backgroundColor: '#86efac' };
+    if (pct < 0.70) return { backgroundColor: '#4ade80' };
+    if (pct < 0.85) return { backgroundColor: '#22c55e' };
+    return { backgroundColor: '#15803d' };
+  };
   const grid = {};
-  data.forEach(d => { grid[`${d.day}-${d.hour}`] = d.count; });
+  (data || []).forEach(d => { grid[`${d.day}-${d.hour}`] = d.count; });
 
   return (
-    <div className="overflow-x-auto">
-      <div className="min-w-[620px]">
-        {/* Hour labels */}
-        <div className="flex ml-10 mb-1">
-          {Array.from({length:24},(_,h) => (
-            <div key={h} className="flex-1 text-center text-[9px] text-gray-400">
-              {h % 3 === 0 ? `${h}h` : ''}
-            </div>
-          ))}
-        </div>
-        {/* Rows */}
-        {DAYS.map((day, d) => (
-          <div key={d} className="flex items-center mb-0.5">
-            <div className="w-10 text-[10px] text-gray-500 text-right pr-2">{day}</div>
-            {Array.from({length:24},(_,h) => {
-              const count = grid[`${d}-${h}`] || 0;
-              return (
-                <div key={h} className="flex-1 m-px group relative">
-                  <div className={`w-full aspect-square rounded-sm ${cell(count)}`} />
-                  {count > 0 && (
-                    <div className="absolute z-10 bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block
-                      bg-gray-800 text-white text-xs rounded px-1.5 py-0.5 whitespace-nowrap pointer-events-none">
-                      {day.trim()} {h}:00 — {count} jobs
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ))}
-        {/* Legend */}
-        <div className="flex items-center gap-1 mt-3 justify-end">
-          <span className="text-[10px] text-gray-400 mr-1">Less</span>
-          {['bg-gray-100','bg-purple-100','bg-purple-200','bg-purple-400','bg-purple-600','bg-purple-800'].map((c,i) => (
-            <div key={i} className={`w-4 h-4 rounded-sm ${c}`} />
-          ))}
-          <span className="text-[10px] text-gray-400 ml-1">More</span>
-        </div>
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-xs text-gray-500">Filter by country:</span>
+        <CountryMultiSelect options={countryOptions} selected={selectedCountries} onChange={onCountriesChange} />
       </div>
+      {heatmapLoading ? (
+        <div className="flex justify-center items-center h-36">
+          <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
+        </div>
+      ) : !data || data.length === 0 ? (
+        <p className="text-sm text-gray-400 text-center py-8">No data</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <div className="min-w-[620px]">
+            <div className="flex ml-10 mb-1">
+              {Array.from({ length: 24 }, (_, h) => (
+                <div key={h} className="flex-1 text-center text-[9px] text-gray-400">
+                  {h % 3 === 0 ? pktLabel(h) : ''}
+                </div>
+              ))}
+            </div>
+            {DAYS.map((day, d) => (
+              <div key={d} className="flex items-center mb-0.5">
+                <div className="w-10 text-[10px] text-gray-500 text-right pr-2">{day}</div>
+                {Array.from({ length: 24 }, (_, h) => {
+                  const count = grid[`${d}-${h}`] || 0;
+                  return (
+                    <div key={h} className="flex-1 m-px group relative">
+                      <div className="w-full aspect-square rounded-sm" style={cellStyle(count)} />
+                      {count > 0 && (
+                        <div className="absolute z-10 bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block
+                          bg-gray-800 text-white text-xs rounded px-1.5 py-0.5 whitespace-nowrap pointer-events-none">
+                          {day.trim()} {pktFullLabel(h)} — {count} jobs
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+            <div className="flex items-center gap-1 mt-3 justify-end">
+              <span className="text-[10px] text-gray-400 mr-1">Less</span>
+              {['#f3f4f6','#fef9c3','#fde68a','#86efac','#4ade80','#22c55e','#15803d'].map((c, i) => (
+                <div key={i} className="w-4 h-4 rounded-sm" style={{ backgroundColor: c }} />
+              ))}
+              <span className="text-[10px] text-gray-400 ml-1">More</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 const AnalyticsPage = () => {
-  const [summary, setSummary]             = useState(null);
-  const [jobsOverTime, setJobsOverTime]   = useState([]);
-  const [scoreDistribution, setScoreDist] = useState([]);
-  const [topCountries, setTopCountries]   = useState([]);
-  const [topCategories, setTopCategories] = useState([]);
+  const [summary, setSummary]                   = useState(null);
+  const [jobsOverTime, setJobsOverTime]         = useState([]);
+  const [scoreDistribution, setScoreDist]       = useState([]);
+  const [topCountries, setTopCountries]         = useState([]);
+  const [topCategories, setTopCategories]       = useState([]);
   const [profileBreakdown, setProfileBreakdown] = useState([]);
-  const [pricingSplit, setPricingSplit]   = useState([]);
-  const [emergingKeywords, setKeywords]   = useState([]);
-  const [heatmap, setHeatmap]             = useState([]);
-  const [hourly, setHourly]               = useState([]);
-  const [verdict, setVerdict]             = useState([]);
-  const [budget, setBudget]               = useState([]);
-  const [experience, setExperience]       = useState([]);
-  const [categoriesByCountry, setCatByCountry] = useState([]);
-  const [keywordsByCategory, setKwByCategory]  = useState([]);
-  const [loading, setLoading]             = useState(true);
-  const [timeRange, setTimeRange]         = useState(30);
-  // expandModal stores { title, key } — content rendered reactively to avoid stale closures
-  const [expandModal, setExpandModal]     = useState(null);
+  const [mainCatBreakdown, setMainCatBreakdown] = useState([]);
+  const [pricingSplit, setPricingSplit]         = useState([]);
+  const [emergingKeywords, setKeywords]         = useState([]);
+  const [heatmap, setHeatmap]                   = useState([]);
+  const [hourly, setHourly]                     = useState([]);
+  const [verdict, setVerdict]                   = useState([]);
+  const [budget, setBudget]                     = useState([]);
+  const [experience, setExperience]             = useState([]);
+  const [categoriesByCountry, setCatByCountry]  = useState([]);
+  const [keywordsByCategory, setKwByCategory]   = useState([]);
+  const [loading, setLoading]                   = useState(true);
+  const [timeRange, setTimeRange]               = useState(30);
+  const [expandModal, setExpandModal]           = useState(null);
+  const [modalLoading, setModalLoading]         = useState(false);
+  const [heatmapCountries, setHeatmapCountries] = useState([]);
+  const [heatmapLoading, setHeatmapLoading]     = useState(false);
 
-  // Limits (state changes trigger re-renders so modal content is always fresh)
   const [countriesLimit, setCountriesLimit]   = useState(10);
   const [categoriesLimit, setCategoriesLimit] = useState(10);
   const [keywordsLimit, setKeywordsLimit]     = useState(20);
@@ -153,7 +219,7 @@ const AnalyticsPage = () => {
     setLoading(true);
     try {
       const [
-        sumR, jotR, scR, coR, caR, prR, pnR, kwR,
+        sumR, jotR, scR, coR, caR, prR, mcR, pnR, kwR,
         hmR, hrR, vdR, bdR, exR, cbcR, kbcR
       ] = await Promise.all([
         getAnalyticsSummary(),
@@ -162,9 +228,10 @@ const AnalyticsPage = () => {
         getTopCountries(countriesLimit),
         getTopCategories(categoriesLimit),
         getProfileBreakdown(),
+        getMainCategoryBreakdown(),
         getPricingSplit(),
         getEmergingKeywords(7, keywordsLimit),
-        getPostingHeatmap(range),
+        getPostingHeatmap(range, heatmapCountries),
         getHourlyDistribution(range),
         getSemanticVerdictBreakdown(),
         getBudgetDistribution(),
@@ -178,6 +245,7 @@ const AnalyticsPage = () => {
       setTopCountries(coR.data.data || []);
       setTopCategories(caR.data.data || []);
       setProfileBreakdown(prR.data.data || []);
+      setMainCatBreakdown(mcR.data.data || []);
       setPricingSplit(pnR.data.data || []);
       setKeywords(kwR.data.data || []);
       setHeatmap(hmR.data.data || []);
@@ -196,12 +264,21 @@ const AnalyticsPage = () => {
 
   useEffect(() => { fetchAll(); }, [timeRange]);
 
-  // Refetch helpers — update state AND refetch (modal content re-renders automatically from state)
-  const refetchCountries  = async (lim) => { const r = await getTopCountries(lim); setTopCountries(r.data.data||[]); };
-  const refetchCategories = async (lim) => { const r = await getTopCategories(lim); setTopCategories(r.data.data||[]); };
-  const refetchKeywords   = async (lim) => { const r = await getEmergingKeywords(7,lim); setKeywords(r.data.data||[]); };
-  const refetchCbc        = async (lim, cats) => { const r = await getCategoriesByCountry(lim, cats); setCatByCountry(r.data.data||[]); };
-  const refetchKbc        = async (lim) => { const r = await getKeywordsByCategory(lim); setKwByCategory(r.data.data||[]); };
+  const handleHeatmapCountryChange = async (countries) => {
+    setHeatmapCountries(countries);
+    setHeatmapLoading(true);
+    try {
+      const r = await getPostingHeatmap(timeRange, countries);
+      setHeatmap(r.data.data || []);
+    } catch { toast.error('Failed to update heatmap'); }
+    finally { setHeatmapLoading(false); }
+  };
+
+  const refetchCountries  = async (lim) => { setModalLoading(true); try { const r = await getTopCountries(lim);          setTopCountries(r.data.data||[]); } finally { setModalLoading(false); } };
+  const refetchCategories = async (lim) => { setModalLoading(true); try { const r = await getTopCategories(lim);         setTopCategories(r.data.data||[]); } finally { setModalLoading(false); } };
+  const refetchKeywords   = async (lim) => { setModalLoading(true); try { const r = await getEmergingKeywords(7,lim);    setKeywords(r.data.data||[]); } finally { setModalLoading(false); } };
+  const refetchCbc        = async (lim) => { setModalLoading(true); try { const r = await getCategoriesByCountry(lim,5); setCatByCountry(r.data.data||[]); } finally { setModalLoading(false); } };
+  const refetchKbc        = async (lim) => { setModalLoading(true); try { const r = await getKeywordsByCategory(lim);    setKwByCategory(r.data.data||[]); } finally { setModalLoading(false); } };
 
   const hBarChart = (data, dataKey, nameKey, fill, height = 260) => (
     <ResponsiveContainer width="100%" height={height}>
@@ -216,9 +293,14 @@ const AnalyticsPage = () => {
   );
 
   const VERDICT_COLORS = { Yes:'#10b981', Maybe:'#f59e0b', No:'#ef4444', 'Not Scored':'#9ca3af' };
+  const hourlyWithPkt = hourly.map(d => ({ ...d, pktHour: pktLabel(d.hour) }));
 
-  // ── Reactive modal content — reads current state at render time ───────────
   const renderModalContent = (key) => {
+    if (modalLoading) return (
+      <div className="flex justify-center items-center h-40">
+        <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
+      </div>
+    );
     switch (key) {
       case 'countries':
         return (
@@ -276,7 +358,7 @@ const AnalyticsPage = () => {
           <>
             <div className="flex gap-2 mb-3">
               {[6,8,10,15].map(n => (
-                <button key={n} onClick={() => { setCbcLimit(n); refetchCbc(n, 5); }}
+                <button key={n} onClick={() => { setCbcLimit(n); refetchCbc(n); }}
                   className={`text-xs px-2.5 py-1 rounded border ${cbcCountriesLimit===n?'bg-purple-600 text-white':'hover:bg-gray-100'}`}>
                   Top {n} Countries
                 </button>
@@ -287,7 +369,7 @@ const AnalyticsPage = () => {
                 <div key={ci}>
                   <div className="text-xs font-semibold text-gray-600 mb-1">🌍 {row.country}</div>
                   <ResponsiveContainer width="100%" height={100}>
-                    <BarChart data={row.categories} layout="vertical" margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
+                    <BarChart data={row.categories} layout="vertical" margin={{ left:0, right:0, top:0, bottom:0 }}>
                       <XAxis type="number" tick={{ fontSize: 9 }} allowDecimals={false} />
                       <YAxis type="category" dataKey="category" tick={{ fontSize: 9 }} width={140} />
                       <Tooltip />
@@ -316,7 +398,7 @@ const AnalyticsPage = () => {
                 <div key={ci}>
                   <div className="text-xs font-semibold text-gray-600 mb-1">📂 {row.category}</div>
                   <ResponsiveContainer width="100%" height={Math.max(80, row.keywords.length * 18)}>
-                    <BarChart data={row.keywords} layout="vertical" margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
+                    <BarChart data={row.keywords} layout="vertical" margin={{ left:0, right:0, top:0, bottom:0 }}>
                       <XAxis type="number" tick={{ fontSize: 9 }} allowDecimals={false} />
                       <YAxis type="category" dataKey="word" tick={{ fontSize: 9 }} width={100} />
                       <Tooltip />
@@ -332,6 +414,8 @@ const AnalyticsPage = () => {
         return null;
     }
   };
+
+  const heatmapCountryOptions = topCountries.map(c => c.country);
 
   return (
     <div className="p-4 space-y-6">
@@ -373,21 +457,27 @@ const AnalyticsPage = () => {
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* Posting Activity Heatmap */}
-      <ChartCard title={`🗓 Posting Activity Heatmap — Day × Hour (Last ${timeRange} days)`} loading={loading}>
-        <PostingHeatmap data={heatmap} />
+      {/* Heatmap — PKT times, green colours, country filter */}
+      <ChartCard title={`🗓 Posting Activity Heatmap — Day × Hour (Pakistan Time, Last ${timeRange} days)`} loading={loading}>
+        <PostingHeatmap
+          data={heatmap}
+          countryOptions={heatmapCountryOptions}
+          selectedCountries={heatmapCountries}
+          onCountriesChange={handleHeatmapCountryChange}
+          heatmapLoading={heatmapLoading}
+        />
       </ChartCard>
 
-      {/* Row: Hourly + Score Dist */}
+      {/* Row: Hourly (PKT) + Score Dist */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ChartCard title="🕐 Hourly Activity Distribution" loading={loading}
-          onExpand={() => setExpandModal({ title: '🕐 Hourly Activity', key: 'hourly' })}>
+        <ChartCard title="🕐 Hourly Activity (Pakistan Time)" loading={loading}
+          onExpand={() => setExpandModal({ title: '🕐 Hourly Activity (PKT)', key: 'hourly' })}>
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={hourly}>
+            <BarChart data={hourlyWithPkt}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="hour" tickFormatter={h => h % 4 === 0 ? `${h}h` : ''} tick={{ fontSize: 9 }} />
+              <XAxis dataKey="pktHour" tick={{ fontSize: 9 }} interval={3} />
               <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(v,n,p) => [v, `${p.payload.hour}:00`]} />
+              <Tooltip formatter={(v, n, p) => [v, pktFullLabel(p.payload.hour)]} />
               <Bar dataKey="count" fill="#7c3aed" name="Jobs" radius={[3,3,0,0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -498,15 +588,14 @@ const AnalyticsPage = () => {
                   <div className="flex flex-wrap gap-1">
                     {row.categories.map((cat, i) => (
                       <span key={i} className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded px-1.5 py-0.5">
-                        {cat.category}
-                        <span className="font-bold text-blue-900">{cat.count}</span>
+                        {cat.category} <span className="font-bold text-blue-900">{cat.count}</span>
                       </span>
                     ))}
                   </div>
                 </div>
               ))}
               {categoriesByCountry.length > 5 && (
-                <p className="text-xs text-gray-400 text-right">+{categoriesByCountry.length - 5} more countries — expand to see all</p>
+                <p className="text-xs text-gray-400 text-right">+{categoriesByCountry.length - 5} more — expand to see all</p>
               )}
             </div>
           ) : <p className="text-sm text-gray-400 text-center mt-10">No data</p>}
@@ -521,7 +610,7 @@ const AnalyticsPage = () => {
                   <div className="text-xs font-semibold text-gray-500 mb-1">{row.category}</div>
                   <div className="flex flex-wrap gap-1">
                     {row.keywords.slice(0, 8).map((kw, i) => (
-                      <span key={i} className={`text-xs rounded px-1.5 py-0.5 border font-medium`}
+                      <span key={i} className="text-xs rounded px-1.5 py-0.5 border font-medium"
                         style={{ background: `${COLORS[ci % COLORS.length]}15`, color: COLORS[ci % COLORS.length], borderColor: `${COLORS[ci % COLORS.length]}40` }}>
                         {kw.word} <span className="opacity-70">{kw.count}</span>
                       </span>
@@ -530,48 +619,81 @@ const AnalyticsPage = () => {
                 </div>
               ))}
               {keywordsByCategory.length > 4 && (
-                <p className="text-xs text-gray-400 text-right">+{keywordsByCategory.length - 4} more categories — expand to see all</p>
+                <p className="text-xs text-gray-400 text-right">+{keywordsByCategory.length - 4} more — expand to see all</p>
               )}
             </div>
           ) : <p className="text-sm text-gray-400 text-center mt-10">No data</p>}
         </ChartCard>
       </div>
 
-      {/* Row: Profile Breakdown + Emerging Keywords */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Row: 3 Pie Charts — Profile Match + Main Category + Job Category */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <ChartCard title="🧠 Jobs by Profile Match" loading={loading}>
           {profileBreakdown.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie data={profileBreakdown} dataKey="count" nameKey="profile"
-                  cx="50%" cy="50%" outerRadius={80}
-                  label={({ profile, percent }) => `${profile} ${(percent*100).toFixed(0)}%`}>
+                  cx="50%" cy="50%" outerRadius={72}
+                  label={({ percent }) => `${(percent*100).toFixed(0)}%`} labelLine={false}>
                   {profileBreakdown.map((_,i) => <Cell key={i} fill={COLORS[i%COLORS.length]} />)}
                 </Pie>
-                <Tooltip />
-                <Legend />
+                <Tooltip formatter={(v,n,p) => [v, p.payload.profile]} />
+                <Legend iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
               </PieChart>
             </ResponsiveContainer>
           ) : <p className="text-sm text-gray-400 text-center mt-10">No profile data</p>}
         </ChartCard>
 
-        <ChartCard title="🔥 Emerging Keywords (Last 7 days)" loading={loading}
-          onExpand={() => setExpandModal({ title: '🔥 All Keywords', key: 'keywords' })}>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={emergingKeywords.slice(0,15)}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="word" tick={{ fontSize: 9 }} angle={-35} textAnchor="end" height={50} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Bar dataKey="count" fill="#f59e0b" name="Mentions" radius={[3,3,0,0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        <ChartCard title="📁 Jobs by Main Category" loading={loading}>
+          {mainCatBreakdown.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={mainCatBreakdown} dataKey="count" nameKey="category"
+                  cx="50%" cy="50%" outerRadius={72}
+                  label={({ percent }) => `${(percent*100).toFixed(0)}%`} labelLine={false}>
+                  {mainCatBreakdown.map((_,i) => <Cell key={i} fill={COLORS[i%COLORS.length]} />)}
+                </Pie>
+                <Tooltip formatter={(v,n,p) => [v, p.payload.category]} />
+                <Legend iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : <p className="text-sm text-gray-400 text-center mt-10">No data</p>}
+        </ChartCard>
+
+        <ChartCard title="🗂 Jobs by Job Category" loading={loading}>
+          {topCategories.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={topCategories.slice(0,10)} dataKey="count" nameKey="category"
+                  cx="50%" cy="50%" outerRadius={72}
+                  label={({ percent }) => `${(percent*100).toFixed(0)}%`} labelLine={false}>
+                  {topCategories.slice(0,10).map((_,i) => <Cell key={i} fill={COLORS[i%COLORS.length]} />)}
+                </Pie>
+                <Tooltip formatter={(v,n,p) => [v, p.payload.category]} />
+                <Legend iconSize={10} wrapperStyle={{ fontSize: '10px' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : <p className="text-sm text-gray-400 text-center mt-10">No data</p>}
         </ChartCard>
       </div>
 
-      {/* Expand Modal — content rendered reactively from renderModalContent */}
+      {/* Emerging Keywords */}
+      <ChartCard title="🔥 Emerging Keywords (Last 7 days)" loading={loading}
+        onExpand={() => setExpandModal({ title: '🔥 All Keywords', key: 'keywords' })}>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={emergingKeywords.slice(0,20)}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="word" tick={{ fontSize: 9 }} angle={-35} textAnchor="end" height={50} />
+            <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+            <Tooltip />
+            <Bar dataKey="count" fill="#f59e0b" name="Mentions" radius={[3,3,0,0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
+
+      {/* Expand Modal */}
       {expandModal && (
-        <ExpandModal title={expandModal.title} onClose={() => setExpandModal(null)}>
+        <ExpandModal title={expandModal.title} onClose={() => { setExpandModal(null); setModalLoading(false); }}>
           {expandModal.key === 'overtime' ? (
             <ResponsiveContainer width="100%" height={350}>
               <LineChart data={jobsOverTime}>
@@ -584,11 +706,11 @@ const AnalyticsPage = () => {
             </ResponsiveContainer>
           ) : expandModal.key === 'hourly' ? (
             <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={hourly}>
+              <BarChart data={hourlyWithPkt}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="hour" tickFormatter={h => `${h}:00`} tick={{ fontSize: 11 }} />
+                <XAxis dataKey="pktHour" tick={{ fontSize: 11 }} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v,n,p) => [v, `${p.payload.hour}:00`]} />
+                <Tooltip formatter={(v, n, p) => [v, pktFullLabel(p.payload.hour)]} />
                 <Bar dataKey="count" fill="#7c3aed" name="Jobs" radius={[3,3,0,0]} />
               </BarChart>
             </ResponsiveContainer>
