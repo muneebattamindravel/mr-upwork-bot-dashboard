@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { playgroundQuery, getPlaygroundProfiles } from '../apis/playground';
+import { playgroundQuery } from '../apis/playground';
 import { toast } from 'sonner';
-import { Send, Loader2, Copy, Trash2, ChevronDown } from 'lucide-react';
+import { Send, Loader2, Copy, Trash2 } from 'lucide-react';
 
 const MAX_HISTORY = 20;
 
@@ -48,25 +48,12 @@ const ContextPanel = ({ contextProjects }) => {
 };
 
 export default function Playground() {
-  const [profiles, setProfiles] = useState([]);
-  const [selectedProfileId, setSelectedProfileId] = useState('');
   const [messages, setMessages] = useState([]); // { role, content }
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [lastContext, setLastContext] = useState([]);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
-
-  // Load profiles
-  useEffect(() => {
-    getPlaygroundProfiles()
-      .then(res => {
-        const list = res.data.data || [];
-        setProfiles(list);
-        if (list.length) setSelectedProfileId(list[0]._id);
-      })
-      .catch(() => toast.error('Failed to load profiles'));
-  }, []);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -75,7 +62,7 @@ export default function Playground() {
 
   const handleSend = async () => {
     const query = input.trim();
-    if (!query || !selectedProfileId || loading) return;
+    if (!query || loading) return;
 
     const userMsg = { role: 'user', content: query };
     setMessages(prev => [...prev, userMsg]);
@@ -83,10 +70,8 @@ export default function Playground() {
     setLoading(true);
 
     try {
-      // Build conversation history (exclude current message — it's passed as 'query')
       const history = messages.slice(-MAX_HISTORY).map(m => ({ role: m.role, content: m.content }));
-
-      const res = await playgroundQuery({ profileId: selectedProfileId, query, conversationHistory: history });
+      const res = await playgroundQuery({ query, conversationHistory: history });
       const { answer, contextProjects } = res.data.data;
 
       setMessages(prev => [...prev, { role: 'assistant', content: answer }]);
@@ -119,22 +104,7 @@ export default function Playground() {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="page-title">🧪 BD Playground</h2>
         <div className="flex items-center gap-3">
-          {/* Profile selector */}
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Profile:</label>
-            <div className="relative">
-              <select
-                value={selectedProfileId}
-                onChange={e => setSelectedProfileId(e.target.value)}
-                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm pr-7 appearance-none focus:outline-none focus:ring-2 focus:ring-purple-400"
-              >
-                {profiles.map(p => (
-                  <option key={p._id} value={p._id}>{p.profileName}</option>
-                ))}
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
-            </div>
-          </div>
+          <span className="text-xs text-gray-400 italic">Searches across all profiles</span>
           <button
             onClick={handleClearChat}
             className="btn-outline text-xs px-3 py-1.5 flex items-center gap-1 text-red-500 border-red-200 hover:bg-red-50"
@@ -155,7 +125,7 @@ export default function Playground() {
               <div className="flex flex-col items-center justify-center h-full text-center text-gray-400 space-y-2 py-12">
                 <div className="text-4xl">🧪</div>
                 <div className="text-sm font-medium">BD Playground</div>
-                <div className="text-xs max-w-xs">Ask about Mindravel's capabilities, request outreach messages, or explore past projects — the AI has live access to your knowledge base.</div>
+                <div className="text-xs max-w-xs">Ask about Mindravel's capabilities, request outreach messages, or explore past projects — the AI searches across all profiles.</div>
               </div>
             )}
             {messages.map((msg, i) => (
@@ -185,7 +155,7 @@ export default function Playground() {
             />
             <button
               onClick={handleSend}
-              disabled={loading || !input.trim() || !selectedProfileId}
+              disabled={loading || !input.trim()}
               className="btn-primary p-2.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

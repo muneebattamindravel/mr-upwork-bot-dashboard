@@ -8,12 +8,13 @@ import {
   getTopCategories, getProfileBreakdown, getPricingSplit, getEmergingKeywords,
   getPostingHeatmap, getHourlyDistribution, getSemanticVerdictBreakdown,
   getBudgetDistribution, getExperienceBreakdown,
+  getCategoriesByCountry, getKeywordsByCategory,
 } from '../apis/analytics';
 import { toast } from 'sonner';
 import { Loader2, Maximize2, X } from 'lucide-react';
 
 const COLORS = ['#7c3aed','#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#84cc16','#f97316','#ec4899'];
-const DAYS  = [' Mon',' Tue',' Wed',' Thu',' Fri',' Sat',' Sun'];
+const DAYS   = [' Mon',' Tue',' Wed',' Thu',' Fri',' Sat',' Sun'];
 
 // ── Stat Card ─────────────────────────────────────────────────────────────────
 const StatCard = ({ label, value, sub }) => (
@@ -43,7 +44,7 @@ const ChartCard = ({ title, loading, onExpand, children }) => (
   </div>
 );
 
-// ── Expand Modal ──────────────────────────────────────────────────────────────
+// ── Expand Modal — renders content reactively from parent state via renderFn ──
 const ExpandModal = ({ title, onClose, children }) => (
   <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
     <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
@@ -134,20 +135,26 @@ const AnalyticsPage = () => {
   const [verdict, setVerdict]             = useState([]);
   const [budget, setBudget]               = useState([]);
   const [experience, setExperience]       = useState([]);
+  const [categoriesByCountry, setCatByCountry] = useState([]);
+  const [keywordsByCategory, setKwByCategory]  = useState([]);
   const [loading, setLoading]             = useState(true);
   const [timeRange, setTimeRange]         = useState(30);
-  const [expandModal, setExpandModal]     = useState(null); // { title, content }
-  // Limits for expand
+  // expandModal stores { title, key } — content rendered reactively to avoid stale closures
+  const [expandModal, setExpandModal]     = useState(null);
+
+  // Limits (state changes trigger re-renders so modal content is always fresh)
   const [countriesLimit, setCountriesLimit]   = useState(10);
   const [categoriesLimit, setCategoriesLimit] = useState(10);
   const [keywordsLimit, setKeywordsLimit]     = useState(20);
+  const [cbcCountriesLimit, setCbcLimit]      = useState(8);
+  const [kbcLimit, setKbcLimit]               = useState(10);
 
   const fetchAll = async (range = timeRange) => {
     setLoading(true);
     try {
       const [
         sumR, jotR, scR, coR, caR, prR, pnR, kwR,
-        hmR, hrR, vdR, bdR, exR
+        hmR, hrR, vdR, bdR, exR, cbcR, kbcR
       ] = await Promise.all([
         getAnalyticsSummary(),
         getJobsOverTime(range),
@@ -162,6 +169,8 @@ const AnalyticsPage = () => {
         getSemanticVerdictBreakdown(),
         getBudgetDistribution(),
         getExperienceBreakdown(),
+        getCategoriesByCountry(cbcCountriesLimit, 5),
+        getKeywordsByCategory(kbcLimit),
       ]);
       setSummary(sumR.data.data);
       setJobsOverTime(jotR.data.data || []);
@@ -176,6 +185,8 @@ const AnalyticsPage = () => {
       setVerdict(vdR.data.data || []);
       setBudget(bdR.data.data || []);
       setExperience(exR.data.data || []);
+      setCatByCountry(cbcR.data.data || []);
+      setKwByCategory(kbcR.data.data || []);
     } catch (err) {
       toast.error('Failed to load analytics');
     } finally {
@@ -185,12 +196,12 @@ const AnalyticsPage = () => {
 
   useEffect(() => { fetchAll(); }, [timeRange]);
 
-  const expand = (title, content) => setExpandModal({ title, content });
-
-  // Refetch when limits change
+  // Refetch helpers — update state AND refetch (modal content re-renders automatically from state)
   const refetchCountries  = async (lim) => { const r = await getTopCountries(lim); setTopCountries(r.data.data||[]); };
   const refetchCategories = async (lim) => { const r = await getTopCategories(lim); setTopCategories(r.data.data||[]); };
   const refetchKeywords   = async (lim) => { const r = await getEmergingKeywords(7,lim); setKeywords(r.data.data||[]); };
+  const refetchCbc        = async (lim, cats) => { const r = await getCategoriesByCountry(lim, cats); setCatByCountry(r.data.data||[]); };
+  const refetchKbc        = async (lim) => { const r = await getKeywordsByCategory(lim); setKwByCategory(r.data.data||[]); };
 
   const hBarChart = (data, dataKey, nameKey, fill, height = 260) => (
     <ResponsiveContainer width="100%" height={height}>
@@ -205,6 +216,122 @@ const AnalyticsPage = () => {
   );
 
   const VERDICT_COLORS = { Yes:'#10b981', Maybe:'#f59e0b', No:'#ef4444', 'Not Scored':'#9ca3af' };
+
+  // ── Reactive modal content — reads current state at render time ───────────
+  const renderModalContent = (key) => {
+    switch (key) {
+      case 'countries':
+        return (
+          <>
+            <div className="flex gap-2 mb-3">
+              {[10,25,50,100].map(n => (
+                <button key={n} onClick={() => { setCountriesLimit(n); refetchCountries(n); }}
+                  className={`text-xs px-2.5 py-1 rounded border ${countriesLimit===n?'bg-purple-600 text-white':'hover:bg-gray-100'}`}>
+                  Top {n}
+                </button>
+              ))}
+            </div>
+            {hBarChart(topCountries, 'count', 'country', '#3b82f6', Math.max(260, topCountries.length * 28))}
+          </>
+        );
+      case 'categories':
+        return (
+          <>
+            <div className="flex gap-2 mb-3">
+              {[10,25,50].map(n => (
+                <button key={n} onClick={() => { setCategoriesLimit(n); refetchCategories(n); }}
+                  className={`text-xs px-2.5 py-1 rounded border ${categoriesLimit===n?'bg-purple-600 text-white':'hover:bg-gray-100'}`}>
+                  Top {n}
+                </button>
+              ))}
+            </div>
+            {hBarChart(topCategories, 'count', 'category', '#10b981', Math.max(260, topCategories.length * 28))}
+          </>
+        );
+      case 'keywords':
+        return (
+          <>
+            <div className="flex gap-2 mb-3">
+              {[20,50,100].map(n => (
+                <button key={n} onClick={() => { setKeywordsLimit(n); refetchKeywords(n); }}
+                  className={`text-xs px-2.5 py-1 rounded border ${keywordsLimit===n?'bg-purple-600 text-white':'hover:bg-gray-100'}`}>
+                  Top {n}
+                </button>
+              ))}
+            </div>
+            <ResponsiveContainer width="100%" height={Math.max(300, emergingKeywords.length * 22)}>
+              <BarChart data={emergingKeywords} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                <YAxis type="category" dataKey="word" tick={{ fontSize: 10 }} width={90} />
+                <Tooltip />
+                <Bar dataKey="count" fill="#f59e0b" name="Mentions" radius={[0,3,3,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </>
+        );
+      case 'cbc': {
+        const catColors = ['#7c3aed','#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#84cc16','#f97316','#ec4899'];
+        return (
+          <>
+            <div className="flex gap-2 mb-3">
+              {[6,8,10,15].map(n => (
+                <button key={n} onClick={() => { setCbcLimit(n); refetchCbc(n, 5); }}
+                  className={`text-xs px-2.5 py-1 rounded border ${cbcCountriesLimit===n?'bg-purple-600 text-white':'hover:bg-gray-100'}`}>
+                  Top {n} Countries
+                </button>
+              ))}
+            </div>
+            <div className="space-y-4">
+              {categoriesByCountry.map((row, ci) => (
+                <div key={ci}>
+                  <div className="text-xs font-semibold text-gray-600 mb-1">🌍 {row.country}</div>
+                  <ResponsiveContainer width="100%" height={100}>
+                    <BarChart data={row.categories} layout="vertical" margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
+                      <XAxis type="number" tick={{ fontSize: 9 }} allowDecimals={false} />
+                      <YAxis type="category" dataKey="category" tick={{ fontSize: 9 }} width={140} />
+                      <Tooltip />
+                      <Bar dataKey="count" fill={catColors[ci % catColors.length]} radius={[0,3,3,0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ))}
+            </div>
+          </>
+        );
+      }
+      case 'kbc':
+        return (
+          <>
+            <div className="flex gap-2 mb-3">
+              {[10,20,30].map(n => (
+                <button key={n} onClick={() => { setKbcLimit(n); refetchKbc(n); }}
+                  className={`text-xs px-2.5 py-1 rounded border ${kbcLimit===n?'bg-purple-600 text-white':'hover:bg-gray-100'}`}>
+                  Top {n} Keywords
+                </button>
+              ))}
+            </div>
+            <div className="space-y-5">
+              {keywordsByCategory.map((row, ci) => (
+                <div key={ci}>
+                  <div className="text-xs font-semibold text-gray-600 mb-1">📂 {row.category}</div>
+                  <ResponsiveContainer width="100%" height={Math.max(80, row.keywords.length * 18)}>
+                    <BarChart data={row.keywords} layout="vertical" margin={{ left: 0, right: 0, top: 0, bottom: 0 }}>
+                      <XAxis type="number" tick={{ fontSize: 9 }} allowDecimals={false} />
+                      <YAxis type="category" dataKey="word" tick={{ fontSize: 9 }} width={100} />
+                      <Tooltip />
+                      <Bar dataKey="count" fill={COLORS[ci % COLORS.length]} radius={[0,3,3,0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ))}
+            </div>
+          </>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="p-4 space-y-6">
@@ -234,17 +361,7 @@ const AnalyticsPage = () => {
 
       {/* Jobs Over Time */}
       <ChartCard title={`📅 Jobs Ingested Per Day (Last ${timeRange} days)`} loading={loading}
-        onExpand={() => expand(`📅 Jobs Ingested Per Day`, (
-          <ResponsiveContainer width="100%" height={350}>
-            <LineChart data={jobsOverTime}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Line type="monotone" dataKey="count" stroke="#7c3aed" strokeWidth={2} dot={false} name="Jobs" />
-            </LineChart>
-          </ResponsiveContainer>
-        ))}>
+        onExpand={() => setExpandModal({ title: '📅 Jobs Ingested Per Day', key: 'overtime' })}>
         <ResponsiveContainer width="100%" height={220}>
           <LineChart data={jobsOverTime}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -264,17 +381,7 @@ const AnalyticsPage = () => {
       {/* Row: Hourly + Score Dist */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ChartCard title="🕐 Hourly Activity Distribution" loading={loading}
-          onExpand={() => expand('🕐 Hourly Activity', (
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={hourly}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="hour" tickFormatter={h => `${h}:00`} tick={{ fontSize: 11 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v,n,p) => [v, `${p.payload.hour}:00`]} />
-                <Bar dataKey="count" fill="#7c3aed" name="Jobs" radius={[3,3,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ))}>
+          onExpand={() => setExpandModal({ title: '🕐 Hourly Activity', key: 'hourly' })}>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={hourly}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -369,37 +476,64 @@ const AnalyticsPage = () => {
       {/* Row: Top Countries + Top Categories */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ChartCard title="🌍 Top Client Countries" loading={loading}
-          onExpand={() => expand('🌍 All Countries', (
-            <>
-              <div className="flex gap-2 mb-3">
-                {[10,25,50,100].map(n => (
-                  <button key={n} onClick={() => { setCountriesLimit(n); refetchCountries(n); }}
-                    className={`text-xs px-2.5 py-1 rounded border ${countriesLimit===n?'bg-purple-600 text-white':'hover:bg-gray-100'}`}>
-                    Top {n}
-                  </button>
-                ))}
-              </div>
-              {hBarChart(topCountries, 'count', 'country', '#3b82f6', Math.max(260, topCountries.length * 28))}
-            </>
-          ))}>
+          onExpand={() => setExpandModal({ title: '🌍 All Countries', key: 'countries' })}>
           {hBarChart(topCountries.slice(0,10), 'count', 'country', '#3b82f6')}
         </ChartCard>
 
         <ChartCard title="📂 Top Job Categories" loading={loading}
-          onExpand={() => expand('📂 All Categories', (
-            <>
-              <div className="flex gap-2 mb-3">
-                {[10,25,50].map(n => (
-                  <button key={n} onClick={() => { setCategoriesLimit(n); refetchCategories(n); }}
-                    className={`text-xs px-2.5 py-1 rounded border ${categoriesLimit===n?'bg-purple-600 text-white':'hover:bg-gray-100'}`}>
-                    Top {n}
-                  </button>
-                ))}
-              </div>
-              {hBarChart(topCategories, 'count', 'category', '#10b981', Math.max(260, topCategories.length * 28))}
-            </>
-          ))}>
+          onExpand={() => setExpandModal({ title: '📂 All Categories', key: 'categories' })}>
           {hBarChart(topCategories.slice(0,10), 'count', 'category', '#10b981')}
+        </ChartCard>
+      </div>
+
+      {/* Row: Top Categories per Country + Keywords by Category */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ChartCard title="🌍📂 Top Categories per Country" loading={loading}
+          onExpand={() => setExpandModal({ title: '🌍📂 Categories per Country', key: 'cbc' })}>
+          {categoriesByCountry.length > 0 ? (
+            <div className="space-y-3">
+              {categoriesByCountry.slice(0, 5).map((row, ci) => (
+                <div key={ci}>
+                  <div className="text-xs font-semibold text-gray-500 mb-1">{row.country}</div>
+                  <div className="flex flex-wrap gap-1">
+                    {row.categories.map((cat, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded px-1.5 py-0.5">
+                        {cat.category}
+                        <span className="font-bold text-blue-900">{cat.count}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {categoriesByCountry.length > 5 && (
+                <p className="text-xs text-gray-400 text-right">+{categoriesByCountry.length - 5} more countries — expand to see all</p>
+              )}
+            </div>
+          ) : <p className="text-sm text-gray-400 text-center mt-10">No data</p>}
+        </ChartCard>
+
+        <ChartCard title="🔑 Top Keywords by Category" loading={loading}
+          onExpand={() => setExpandModal({ title: '🔑 Keywords by Category', key: 'kbc' })}>
+          {keywordsByCategory.length > 0 ? (
+            <div className="space-y-3">
+              {keywordsByCategory.slice(0, 4).map((row, ci) => (
+                <div key={ci}>
+                  <div className="text-xs font-semibold text-gray-500 mb-1">{row.category}</div>
+                  <div className="flex flex-wrap gap-1">
+                    {row.keywords.slice(0, 8).map((kw, i) => (
+                      <span key={i} className={`text-xs rounded px-1.5 py-0.5 border font-medium`}
+                        style={{ background: `${COLORS[ci % COLORS.length]}15`, color: COLORS[ci % COLORS.length], borderColor: `${COLORS[ci % COLORS.length]}40` }}>
+                        {kw.word} <span className="opacity-70">{kw.count}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {keywordsByCategory.length > 4 && (
+                <p className="text-xs text-gray-400 text-right">+{keywordsByCategory.length - 4} more categories — expand to see all</p>
+              )}
+            </div>
+          ) : <p className="text-sm text-gray-400 text-center mt-10">No data</p>}
         </ChartCard>
       </div>
 
@@ -422,27 +556,7 @@ const AnalyticsPage = () => {
         </ChartCard>
 
         <ChartCard title="🔥 Emerging Keywords (Last 7 days)" loading={loading}
-          onExpand={() => expand('🔥 All Keywords', (
-            <>
-              <div className="flex gap-2 mb-3">
-                {[20,50,100].map(n => (
-                  <button key={n} onClick={() => { setKeywordsLimit(n); refetchKeywords(n); }}
-                    className={`text-xs px-2.5 py-1 rounded border ${keywordsLimit===n?'bg-purple-600 text-white':'hover:bg-gray-100'}`}>
-                    Top {n}
-                  </button>
-                ))}
-              </div>
-              <ResponsiveContainer width="100%" height={Math.max(300, emergingKeywords.length * 22)}>
-                <BarChart data={emergingKeywords} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="word" tick={{ fontSize: 10 }} width={90} />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#f59e0b" name="Mentions" radius={[0,3,3,0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </>
-          ))}>
+          onExpand={() => setExpandModal({ title: '🔥 All Keywords', key: 'keywords' })}>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={emergingKeywords.slice(0,15)}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -455,10 +569,30 @@ const AnalyticsPage = () => {
         </ChartCard>
       </div>
 
-      {/* Expand Modal */}
+      {/* Expand Modal — content rendered reactively from renderModalContent */}
       {expandModal && (
         <ExpandModal title={expandModal.title} onClose={() => setExpandModal(null)}>
-          {expandModal.content}
+          {expandModal.key === 'overtime' ? (
+            <ResponsiveContainer width="100%" height={350}>
+              <LineChart data={jobsOverTime}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Line type="monotone" dataKey="count" stroke="#7c3aed" strokeWidth={2} dot={false} name="Jobs" />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : expandModal.key === 'hourly' ? (
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={hourly}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="hour" tickFormatter={h => `${h}:00`} tick={{ fontSize: 11 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v,n,p) => [v, `${p.payload.hour}:00`]} />
+                <Bar dataKey="count" fill="#7c3aed" name="Jobs" radius={[3,3,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : renderModalContent(expandModal.key)}
         </ExpandModal>
       )}
     </div>

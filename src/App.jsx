@@ -15,6 +15,7 @@ import NotFound from './pages/notFound';
 import AnalyticsPage from './pages/analyticsPage';
 import Playground from './pages/Playground';
 import UserManagement from './pages/UserManagement'; // deploy
+import JobDetailPage from './pages/JobDetailPage';
 
 const App = () => {
   return (
@@ -116,6 +117,9 @@ const App = () => {
               </PrivateRoute>
             }
           />
+
+          {/* Standalone shareable job detail — no Layout so it works without login */}
+          <Route path="/jobs/:id" element={<JobDetailPage />} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

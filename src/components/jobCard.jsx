@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { BadgeCheck, PhoneCall, MapPin, ChevronDown, ChevronUp, X, RotateCcw, Copy, RefreshCw } from 'lucide-react';
-import { reprocessSingleJob, generateProposal } from '../apis/jobs'
+import { BadgeCheck, PhoneCall, MapPin, ChevronDown, ChevronUp, X, RotateCcw, Copy, RefreshCw, ExternalLink } from 'lucide-react';
+import { reprocessSingleJob, generateProposal } from '../apis/jobs';
 import { toast } from "sonner";
+
+const copyText = (text) => { navigator.clipboard.writeText(text); toast.success('Copied!'); };
 
 import {
     Tooltip,
@@ -29,7 +31,7 @@ const FIELD_LABELS = {
     clientAverageHourlyRate: '⚖️ Avg Hourly Rate'
 };
 
-const JobCard = ({ job }) => {
+const JobCard = ({ job, compact = false }) => {
     const {
         title,
         description,
@@ -126,10 +128,7 @@ const JobCard = ({ job }) => {
         }
     };
 
-    const handleCopyProposal = () => {
-        navigator.clipboard.writeText(proposalText);
-        toast.success('Copied to clipboard!');
-    };
+    const handleCopyProposal = () => copyText(proposalText);
 
     const postedAgo = formatDistanceToNow(new Date(postedDate), { addSuffix: true });
 
@@ -146,14 +145,53 @@ const JobCard = ({ job }) => {
         return `$${num}`;
     };
 
+    // ── Compact card mode ───────────────────────────────────────────────────
+    if (compact) {
+        const score = relevanceScore ?? 0;
+        const scoreColor = score >= 80 ? 'text-green-600' : score >= 50 ? 'text-yellow-600' : 'text-red-500';
+        const verdictEmoji = { Yes: '✅', Maybe: '🟡', No: '❌' }[job.semanticRelevance?.verdict] || '⬜';
+        const budget = pricingModel === 'Fixed'
+            ? (maxRange || minRange) ? `$${maxRange || minRange}` : ''
+            : (minRange || maxRange) ? `$${minRange}–${maxRange}/hr` : '';
+        return (
+            <div className="bg-white border rounded-lg px-3 py-2 flex items-center gap-3 hover:bg-gray-50 group">
+                <span className={`text-sm font-bold w-10 text-right shrink-0 ${scoreColor}`}>{score}%</span>
+                <span className="text-xs shrink-0">{verdictEmoji}</span>
+                <a href={`/jobs/${job._id}`} target="_blank" rel="noopener noreferrer"
+                    className="flex-1 text-sm font-medium text-blue-700 hover:underline truncate min-w-0">
+                    {title}
+                </a>
+                <button onClick={() => copyText(title)}
+                    className="opacity-0 group-hover:opacity-100 shrink-0 p-1 rounded hover:bg-gray-200 transition-opacity">
+                    <Copy className="w-3 h-3 text-gray-400" />
+                </button>
+                {budget && <span className="text-xs text-green-700 font-medium shrink-0">{budget}</span>}
+                {clientCountry && <span className="text-xs text-gray-400 shrink-0">{clientCountry}</span>}
+                {postedAgo && <span className="text-xs text-gray-400 shrink-0 hidden sm:block">{postedAgo}</span>}
+                <a href={job.url} target="_blank" rel="noopener noreferrer"
+                    className="opacity-0 group-hover:opacity-100 shrink-0 p-1 rounded hover:bg-gray-200 transition-opacity">
+                    <ExternalLink className="w-3 h-3 text-gray-400" />
+                </a>
+            </div>
+        );
+    }
+
     return (
         <div className="bg-white shadow-md border rounded-lg p-4 space-y-3 relative">
             {/* Header */}
             <TooltipProvider>
                 <div className="flex justify-between items-center flex-wrap">
-                    <span className="text-lg font-semibold text-blue-700">
-                        {title}
-                    </span>
+                    <div className="flex items-center gap-2">
+                        <a href={`/jobs/${job._id}`} target="_blank" rel="noopener noreferrer"
+                            className="text-lg font-semibold text-blue-700 hover:underline">
+                            {title}
+                        </a>
+                        <button onClick={() => copyText(title)}
+                            className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 shrink-0"
+                            title="Copy title">
+                            <Copy className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
 
                     <div className="flex flex-wrap items-center gap-2 text-sm">
                         {/* Static Relevance Breakdown with Semantic Tooltip */}

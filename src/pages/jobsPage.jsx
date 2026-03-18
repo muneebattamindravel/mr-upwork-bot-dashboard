@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectItem, SelectTrigger, SelectContent, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
@@ -7,9 +7,13 @@ import LoadingButton from '@/components/ui/loading-button';
 import JobCard from '@/components/jobCard';
 import { getFilteredJobs } from '@/apis/jobs';
 import { subDays, format } from 'date-fns';
-import { RotateCcw, Download, SlidersHorizontal, X, Loader2 } from 'lucide-react';
+import { RotateCcw, Download, SlidersHorizontal, X, Loader2, LayoutList, AlignJustify, Wifi, WifiOff } from 'lucide-react';
 import { reprocessJobsStaticOnly, deleteAllJobs } from '../apis/jobs';
 import axios from '../apis/axios';
+import { io } from 'socket.io-client';
+
+const SOCKET_URL = (import.meta.env.VITE_API_BASE_URL || '').replace('/up-bot-brain-api', '');
+const SOCKET_PATH = '/up-bot-brain-api/socket.io';
 
 const defaultFilters = {
   keyword:              '',
@@ -43,9 +47,7 @@ const OPERATORS = [
   { value:'<=',  label:'≤' },
 ];
 
-// ── Stable helper components (defined OUTSIDE to avoid Radix unmount on re-render) ──
-
-// Compact inline label+control pair
+// ── Stable helper components (module-level to avoid Radix unmount) ─────────────
 const FI = ({ label, children }) => (
   <div className="flex items-center gap-1.5 min-w-0">
     <span className="text-[11px] text-gray-400 shrink-0 leading-none">{label}</span>
@@ -53,7 +55,6 @@ const FI = ({ label, children }) => (
   </div>
 );
 
-// Compact select – same height as inputs
 const CS = ({ name, value, options, onSel, width = 'w-24' }) => (
   <Select value={value} onValueChange={v => onSel(name, v)}>
     <SelectTrigger className={`h-7 text-xs px-2 py-0 ${width} border-gray-200`}>
@@ -65,7 +66,6 @@ const CS = ({ name, value, options, onSel, width = 'w-24' }) => (
   </Select>
 );
 
-// Compact op+number pair
 const OI = ({ opName, opVal, inputName, inputVal, onSel, onChange }) => (
   <div className="flex items-center gap-0.5">
     <Select value={opVal} onValueChange={v => onSel(opName, v)}>
@@ -81,7 +81,6 @@ const OI = ({ opName, opVal, inputName, inputVal, onSel, onChange }) => (
   </div>
 );
 
-// Multi-select dropdown with checkboxes
 const MSDropdown = ({ selected, options, onChange, placeholder = 'Any', width = 'w-44' }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -118,6 +117,13 @@ const MSDropdown = ({ selected, options, onChange, placeholder = 'Any', width = 
   );
 };
 
+const hasActiveFilters = (f) =>
+  Object.entries(f).some(([k, v]) => {
+    if (k === 'startDate' || k === 'endDate') return false;
+    if (Array.isArray(v)) return v.length > 0;
+    return v !== '' && v !== 'any' && v !== null && v !== undefined;
+  });
+
 const JobsPage = () => {
   const [filters, setFilters]             = useState({ ...defaultFilters });
   const [jobs, setJobs]                   = useState([]);
@@ -130,64 +136,92 @@ const JobsPage = () => {
   const [totalAll, setTotalAll]           = useState(0);
   const [totalFiltered, setTotalFiltered] = useState(0);
   const [reprocessing, setReprocessing]   = useState(false);
-  const [profiles, setProfiles]               = useState([]);
+  const [profiles, setProfiles]           = useState([]);
   const [scraperCategories, setScraperCategories] = useState([]);
+  const [limit, setLimit]                 = useState(100);
+  const [viewMode, setViewMode]           = useState('detailed');
+  const [liveActive, setLiveActive]       = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const filtersRef = useRef(filters);
+  const limitRef   = useRef(limit);
+
+  useEffect(() => { filtersRef.current = filters; }, [filters]);
+  useEffect(() => { limitRef.current = limit; }, [limit]);
 
   useEffect(() => {
     axios.get('/kb/list').then(r => setProfiles(r.data?.data?.profiles || [])).catch(() => {});
     axios.get('/settings').then(r => setScraperCategories(r.data?.data?.scraperCategories || [])).catch(() => {});
   }, []);
 
+  // ── Socket.IO live feed ────────────────────────────────────────────────────
+  useEffect(() => {
+    const socket = io(SOCKET_URL, { path: SOCKET_PATH, transports: ['websocket', 'polling'] });
+    socket.on('connect',    () => setSocketConnected(true));
+    socket.on('disconnect', () => setSocketConnected(false));
+    socket.on('job:new', (job) => {
+      if (hasActiveFilters(filtersRef.current)) return; // pause when filters active
+      setJobs(prev => {
+        if (prev.some(j => j._id === job._id || j.url === job.url)) return prev;
+        return [job, ...prev];
+      });
+      setTotalAll(n => n + 1);
+      setTotalFiltered(n => n + 1);
+      setLiveActive(true);
+      setTimeout(() => setLiveActive(false), 3000);
+      toast.success(`🆕 ${job.title?.slice(0, 60)}`, { duration: 4000 });
+    });
+    return () => socket.disconnect();
+  }, []);
+
+  const fetchJobs = useCallback(async (f = filters, sb = sortBy, so = sortOrder, lim = limit) => {
+    try {
+      setLoading(true);
+      const q = { limit: lim, sortBy: sb, sortOrder: so };
+      Object.entries(f).forEach(([k, v]) => {
+        if (v === '' || v === null || v === undefined || v === 'any') return;
+        if (Array.isArray(v)) { if (v.length > 0) q[k] = v.join('|||'); }
+        else q[k] = v;
+      });
+      const res = await getFilteredJobs(q);
+      const { jobs: j, totalAll: ta, total: t } = res.data.data || {};
+      setTotalAll(ta || 0); setTotalFiltered(t || 0); setJobs(j || []);
+    } catch { toast.error('Failed to fetch jobs'); }
+    finally { setLoading(false); }
+  }, []); // stable — takes all params explicitly
+
   const applyDateRange = (range, cur = filters) => {
     const now = new Date();
-    const starts = { last24h:1, last3d:3, last7d:7, last30d:30, all:365*20 };
+    const starts = { last24h: 1, last3d: 3, last7d: 7, last30d: 30, all: 365 * 20 };
     if (!starts[range]) return;
     const updated = { ...cur, startDate: format(subDays(now, starts[range]), 'yyyy-MM-dd'), endDate: format(now, 'yyyy-MM-dd') };
     setFilters(updated);
     fetchJobs(updated);
   };
 
-  const fetchJobs = async (f = filters, sb = sortBy, so = sortOrder) => {
-    try {
-      setLoading(true);
-      const q = { limit:100, sortBy:sb, sortOrder:so };
-      Object.entries(f).forEach(([k,v]) => {
-        if (v==='' || v===null || v===undefined || v==='any') return;
-        if (Array.isArray(v)) { if (v.length > 0) q[k] = v.join('|||'); }
-        else q[k] = v;
-      });
-      const res = await getFilteredJobs(q);
-      const { jobs:j, totalAll:ta, total:t } = res.data.data || {};
-      setTotalAll(ta||0); setTotalFiltered(t||0); setJobs(j||[]);
-    } catch { toast.error('Failed to fetch jobs'); }
-    finally { setLoading(false); }
-  };
-
   useEffect(() => { applyDateRange(dateRange); }, []);
-  useEffect(() => { fetchJobs(filters, sortBy, sortOrder); }, [sortBy, sortOrder]);
+  useEffect(() => { fetchJobs(filters, sortBy, sortOrder, limit); }, [sortBy, sortOrder, limit]);
 
   const handleChange = e => {
     const { name, value, type } = e.target;
-    const updated = { ...filters, [name]: type==='number' ? parseFloat(value)||value : value };
+    const updated = { ...filters, [name]: type === 'number' ? parseFloat(value) || value : value };
     setFilters(updated);
-    if (name==='startDate'||name==='endDate') fetchJobs(updated);
+    if (name === 'startDate' || name === 'endDate') fetchJobs(updated);
   };
 
   const handleSel = (name, value) => {
     const u = { ...filters, [name]: value };
-    if (name==='clientRatingOp'  && value==='any') u.clientRating='';
-    if (name==='clientSpendOp'   && value==='any') u.clientSpend='';
-    if (name==='avgHourlyRateOp' && value==='any') u.avgHourlyRate='';
+    if (name === 'clientRatingOp'  && value === 'any') u.clientRating = '';
+    if (name === 'clientSpendOp'   && value === 'any') u.clientSpend = '';
+    if (name === 'avgHourlyRateOp' && value === 'any') u.avgHourlyRate = '';
     setFilters(u);
-    // Auto-fetch for all selects except pure operator changes (they need a value too)
-    const operatorOnlyFields = ['clientRatingOp','clientSpendOp','avgHourlyRateOp'];
+    const operatorOnlyFields = ['clientRatingOp', 'clientSpendOp', 'avgHourlyRateOp'];
     if (!operatorOnlyFields.includes(name)) fetchJobs(u);
   };
 
   const clearFilters = () => {
     const c = { ...defaultFilters };
     setFilters(c); setDateRange('last24h'); setSortBy('postedDate'); setSortOrder('desc');
-    fetchJobs(c, 'postedDate', 'desc');
+    fetchJobs(c, 'postedDate', 'desc', limit);
   };
 
   const handleDelete = async () => {
@@ -198,53 +232,58 @@ const JobsPage = () => {
   };
 
   const handleReprocess = async () => {
-    try { setReprocessing(true); const r=await reprocessJobsStaticOnly(); toast.success(r.data.message||'Reprocessed'); await fetchJobs(); }
+    try { setReprocessing(true); const r = await reprocessJobsStaticOnly(); toast.success(r.data.message || 'Reprocessed'); await fetchJobs(); }
     catch { toast.error('Failed to reprocess'); } finally { setReprocessing(false); }
   };
 
   const exportCSV = () => {
     if (!jobs.length) return toast.error('No jobs to export');
-    const h = ['Title','URL','Category','Posted','Pricing','MinBudget','MaxBudget','Country','ClientSpend','Score','Verdict'];
+    const h = ['Title', 'URL', 'Category', 'Posted', 'Pricing', 'MinBudget', 'MaxBudget', 'Country', 'ClientSpend', 'Score', 'Verdict'];
     const rows = jobs.map(j => [
-      `"${(j.title||'').replace(/"/g,'""')}"`, j.url||'',
-      `"${(j.mainCategory||'').replace(/"/g,'""')}"`,
-      j.postedDate ? format(new Date(j.postedDate),'yyyy-MM-dd') : '',
-      j.pricingModel||'', j.minRange||0, j.maxRange||0,
-      j.clientCountry||'', j.clientSpend||0,
-      j.relevance?.relevanceScore||0, j.semanticRelevance?.verdict||'',
+      `"${(j.title || '').replace(/"/g, '""')}"`, j.url || '',
+      `"${(j.mainCategory || '').replace(/"/g, '""')}"`,
+      j.postedDate ? format(new Date(j.postedDate), 'yyyy-MM-dd') : '',
+      j.pricingModel || '', j.minRange || 0, j.maxRange || 0,
+      j.clientCountry || '', j.clientSpend || 0,
+      j.relevance?.relevanceScore || 0, j.semanticRelevance?.verdict || '',
     ]);
-    const csv = [h.join(','),...rows.map(r=>r.join(','))].join('\n');
+    const csv = [h.join(','), ...rows.map(r => r.join(','))].join('\n');
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-    link.download = `jobs-${format(new Date(),'yyyy-MM-dd')}.csv`;
+    link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    link.download = `jobs-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     link.click();
     toast.success(`Exported ${jobs.length} jobs`);
   };
 
-  const activeCnt = Object.entries(filters).filter(([k,v]) => {
-    if (k==='startDate'||k==='endDate') return false;
+  const activeCnt = Object.entries(filters).filter(([k, v]) => {
+    if (k === 'startDate' || k === 'endDate') return false;
     if (Array.isArray(v)) return v.length > 0;
-    return v!==''&&v!=='any'&&v!==null&&v!==undefined;
+    return v !== '' && v !== 'any' && v !== null && v !== undefined;
   }).length;
+
+  const filtersApplied = hasActiveFilters(filters);
+  const pct = totalAll > 0 ? ((jobs.length / totalAll) * 100).toFixed(1) : '0';
 
   return (
     <div className="p-4 space-y-3">
 
-      {/* ── Header row ── */}
+      {/* ── Header ── */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="page-title">🧠 Job Listings</h2>
-        <div className="flex items-center gap-2 flex-wrap text-sm">
-          <span className="text-gray-500 text-xs">
-            <strong>{jobs.length}</strong>/<strong>{totalFiltered}</strong> · <strong>{totalAll}</strong> total
-          </span>
-          <button onClick={() => fetchJobs()} disabled={loading}
-            className="p-1.5 rounded-full border hover:bg-gray-100 disabled:opacity-50" title="Refresh">
-            <RotateCcw className={`w-3.5 h-3.5 text-purple-700 ${loading?'animate-spin':''}`} />
-          </button>
-          <button onClick={exportCSV} disabled={!jobs.length}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs border rounded hover:bg-gray-100 disabled:opacity-40">
-            <Download className="w-3 h-3 text-green-700" /> Export
-          </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* View toggle */}
+          <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+            <button onClick={() => setViewMode('detailed')}
+              className={`px-2.5 py-1.5 text-xs flex items-center gap-1 transition-colors ${viewMode === 'detailed' ? 'bg-purple-600 text-white' : 'hover:bg-gray-50 text-gray-600'}`}
+              title="Full card view">
+              <LayoutList className="w-3.5 h-3.5" /> Full
+            </button>
+            <button onClick={() => setViewMode('compact')}
+              className={`px-2.5 py-1.5 text-xs flex items-center gap-1 border-l transition-colors ${viewMode === 'compact' ? 'bg-purple-600 text-white' : 'hover:bg-gray-50 text-gray-600'}`}
+              title="Compact list view">
+              <AlignJustify className="w-3.5 h-3.5" /> Compact
+            </button>
+          </div>
           <button onClick={handleReprocess} disabled={reprocessing}
             className="flex items-center gap-1 px-2.5 py-1 text-xs border rounded hover:bg-gray-100 disabled:opacity-40">
             {reprocessing ? <Loader2 className="w-3 h-3 animate-spin" /> : '🔄'} Reprocess
@@ -256,9 +295,9 @@ const JobsPage = () => {
         </div>
       </div>
 
-      {/* ── Filter toggle row ── */}
+      {/* ── Filter toggle ── */}
       <div className="flex items-center gap-2">
-        <button onClick={() => setShowFilters(p=>!p)}
+        <button onClick={() => setShowFilters(p => !p)}
           className="flex items-center gap-1.5 px-2.5 py-1 text-xs border rounded hover:bg-gray-50">
           <SlidersHorizontal className="w-3.5 h-3.5" />
           Filters
@@ -275,19 +314,19 @@ const JobsPage = () => {
         )}
       </div>
 
-      {/* ── Compact filter panel ── */}
+      {/* ── Filter panel ── */}
       {showFilters && (
         <div className="border rounded-lg p-3 bg-gray-50/50 space-y-2">
 
-          {/* Row 1 — Basic */}
+          {/* Row 1 */}
           <div className="flex flex-wrap gap-x-4 gap-y-2 items-center">
             <FI label="Date">
               <Select value={dateRange} onValueChange={v => { setDateRange(v); if (v !== 'custom') applyDateRange(v); }}>
                 <SelectTrigger className="h-7 text-xs px-2 w-28 border-gray-200"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-white text-black text-xs">
-                  {[{value:'last24h',label:'Last 24h'},{value:'last3d',label:'Last 3d'},
-                    {value:'last7d',label:'Last 7d'},{value:'last30d',label:'Last 30d'},
-                    {value:'all',label:'All time'},{value:'custom',label:'Custom'}]
+                  {[{ value: 'last24h', label: 'Last 24h' }, { value: 'last3d', label: 'Last 3d' },
+                    { value: 'last7d', label: 'Last 7d' }, { value: 'last30d', label: 'Last 30d' },
+                    { value: 'all', label: 'All time' }, { value: 'custom', label: 'Custom' }]
                     .map(o => <SelectItem key={o.value} value={o.value} className="text-xs py-1">{o.label}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -302,19 +341,14 @@ const JobsPage = () => {
                   className="h-7 text-xs px-2 w-36 border-gray-200" />
               </FI>
             </>}
-            <FI label="Search">
-              <Input name="keyword" value={filters.keyword} onChange={handleChange}
-                onKeyDown={e => { if (e.key === 'Enter') fetchJobs(filters); }}
-                className="h-7 text-xs px-2 w-44 border-gray-200" placeholder="title, description…" />
-            </FI>
             <FI label="Type">
               <CS name="pricingModel" value={filters.pricingModel} onSel={handleSel} width="w-24"
-                options={[{value:'any',label:'Any'},{value:'fixed',label:'Fixed'},{value:'hourly',label:'Hourly'}]} />
+                options={[{ value: 'any', label: 'Any' }, { value: 'fixed', label: 'Fixed' }, { value: 'hourly', label: 'Hourly' }]} />
             </FI>
             <FI label="Level">
               <CS name="experienceLevel" value={filters.experienceLevel} onSel={handleSel} width="w-28"
-                options={[{value:'any',label:'Any'},{value:'Entry Level',label:'Entry'},
-                  {value:'Intermediate',label:'Mid'},{value:'Expert',label:'Expert'}]} />
+                options={[{ value: 'any', label: 'Any' }, { value: 'Entry Level', label: 'Entry' },
+                  { value: 'Intermediate', label: 'Mid' }, { value: 'Expert', label: 'Expert' }]} />
             </FI>
             <FI label="Country">
               <Input name="clientCountry" value={filters.clientCountry} onChange={handleChange}
@@ -329,10 +363,9 @@ const JobsPage = () => {
               className="h-7 text-xs px-2 w-20 border-gray-200" placeholder="max" />
           </div>
 
-          {/* Divider */}
           <div className="border-t border-gray-200" />
 
-          {/* Row 2 — Client + Scoring */}
+          {/* Row 2 */}
           <div className="flex flex-wrap gap-x-4 gap-y-2 items-center">
             <FI label="Rating">
               <OI opName="clientRatingOp" opVal={filters.clientRatingOp} inputName="clientRating"
@@ -348,21 +381,20 @@ const JobsPage = () => {
             </FI>
             <FI label="Phone">
               <CS name="clientPhoneVerified" value={filters.clientPhoneVerified} onSel={handleSel} width="w-16"
-                options={[{value:'any',label:'Any'},{value:'true',label:'Yes'},{value:'false',label:'No'}]} />
+                options={[{ value: 'any', label: 'Any' }, { value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]} />
             </FI>
             <FI label="Payment">
               <CS name="clientPaymentVerified" value={filters.clientPaymentVerified} onSel={handleSel} width="w-16"
-                options={[{value:'any',label:'Any'},{value:'true',label:'Yes'},{value:'false',label:'No'}]} />
+                options={[{ value: 'any', label: 'Any' }, { value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]} />
             </FI>
-            {/* scoring */}
             <div className="w-px h-4 bg-gray-300 mx-1 hidden sm:block" />
             <FI label="Matched Profile">
               <CS name="profile" value={filters.profile} onSel={handleSel} width="w-36"
-                options={[{value:'any',label:'Any'},...profiles.map(p=>({value:p.profileName,label:p.profileName}))]} />
+                options={[{ value: 'any', label: 'Any' }, ...profiles.map(p => ({ value: p.profileName, label: p.profileName }))]} />
             </FI>
             <FI label="Semantic">
               <CS name="semanticVerdict" value={filters.semanticVerdict} onSel={handleSel} width="w-24"
-                options={[{value:'any',label:'Any'},{value:'Yes',label:'✅ Yes'},{value:'Maybe',label:'🟡 Maybe'},{value:'No',label:'❌ No'}]} />
+                options={[{ value: 'any', label: 'Any' }, { value: 'Yes', label: '✅ Yes' }, { value: 'Maybe', label: '🟡 Maybe' }, { value: 'No', label: '❌ No' }]} />
             </FI>
             <FI label="Category">
               <MSDropdown
@@ -379,16 +411,15 @@ const JobsPage = () => {
             </FI>
           </div>
 
-          {/* Divider */}
           <div className="border-t border-gray-200" />
 
-          {/* Row 3 — Sort + Apply */}
+          {/* Row 3 — Sort + prominent Search + Apply */}
           <div className="flex flex-wrap items-center gap-3">
             <FI label="Sort">
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="h-7 text-xs px-2 w-36 border-gray-200"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-white text-black text-xs">
-                  <SelectItem value="postedDate"   className="text-xs py-1">📅 Posted Date</SelectItem>
+                  <SelectItem value="postedDate"    className="text-xs py-1">📅 Posted Date</SelectItem>
                   <SelectItem value="relevanceScore" className="text-xs py-1">🧠 Relevance</SelectItem>
                   <SelectItem value="clientRating"  className="text-xs py-1">⭐ Rating</SelectItem>
                   <SelectItem value="clientSpend"   className="text-xs py-1">💰 Spend</SelectItem>
@@ -405,16 +436,83 @@ const JobsPage = () => {
                 </SelectContent>
               </Select>
             </FI>
+            {/* Prominent search bar — last before Apply */}
+            <div className="flex-1 min-w-[200px] max-w-sm">
+              <Input
+                name="keyword"
+                value={filters.keyword}
+                onChange={handleChange}
+                onKeyDown={e => { if (e.key === 'Enter') fetchJobs(filters); }}
+                className="h-8 text-sm px-3 border-purple-300 focus:border-purple-500 rounded-lg w-full"
+                placeholder="🔍 Search title, description…"
+              />
+            </div>
             <LoadingButton loading={loading} onClick={() => fetchJobs(filters)}
-              className="h-7 px-4 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded">
+              className="h-8 px-5 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium">
               Apply
             </LoadingButton>
           </div>
         </div>
       )}
 
+      {/* ── Results bar ── */}
+      <div className="flex items-center justify-between flex-wrap gap-3 py-2.5 px-1 border-b border-gray-100">
+        {/* Left: counts + live status */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="text-sm font-semibold">
+            <span className="text-purple-700 text-base font-bold">{jobs.length.toLocaleString()}</span>
+            <span className="text-gray-400 mx-1 font-normal">/</span>
+            <span className="text-gray-700">{totalFiltered.toLocaleString()}</span>
+            <span className="text-gray-400 text-xs ml-1 font-normal">filtered</span>
+            <span className="text-gray-400 mx-2 font-normal">·</span>
+            <span className="text-gray-500 font-medium">{totalAll.toLocaleString()}</span>
+            <span className="text-gray-400 text-xs ml-1 font-normal">total</span>
+          </div>
+          {totalAll > 0 && (
+            <span className="text-xs px-2 py-0.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-full font-medium">
+              {pct}% of all jobs
+            </span>
+          )}
+          {filtersApplied ? (
+            <span className="text-xs px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-full">
+              ⏸ Live paused (filters active)
+            </span>
+          ) : (
+            <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium transition-colors ${
+              liveActive
+                ? 'bg-green-100 border-green-400 text-green-800'
+                : socketConnected
+                  ? 'bg-green-50 border-green-200 text-green-700'
+                  : 'bg-gray-50 border-gray-200 text-gray-400'
+            }`}>
+              {socketConnected
+                ? <><Wifi className="w-3 h-3" />{liveActive ? ' Updating…' : ' Live'}</>
+                : <><WifiOff className="w-3 h-3" /> Offline</>}
+            </span>
+          )}
+        </div>
+
+        {/* Right: limit + refresh + export */}
+        <div className="flex items-center gap-2">
+          <FI label="Show">
+            <select value={limit} onChange={e => setLimit(Number(e.target.value))}
+              className="h-7 text-xs border border-gray-200 rounded px-2 bg-white focus:outline-none focus:ring-1 focus:ring-purple-400">
+              {[25, 50, 100, 200, 500].map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </FI>
+          <button onClick={() => fetchJobs()} disabled={loading}
+            className="p-1.5 rounded-full border hover:bg-gray-100 disabled:opacity-50" title="Refresh">
+            <RotateCcw className={`w-3.5 h-3.5 text-purple-700 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          <button onClick={exportCSV} disabled={!jobs.length}
+            className="flex items-center gap-1 px-2.5 py-1 text-xs border rounded hover:bg-gray-100 disabled:opacity-40">
+            <Download className="w-3 h-3 text-green-700" /> Export
+          </button>
+        </div>
+      </div>
+
       {/* ── Job list ── */}
-      <div className="space-y-4">
+      <div className={viewMode === 'compact' ? 'space-y-1' : 'space-y-4'}>
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-purple-600" /></div>
         ) : jobs.length === 0 ? (
@@ -423,7 +521,7 @@ const JobsPage = () => {
             <button onClick={clearFilters} className="mt-2 text-sm text-purple-600 hover:underline">Clear filters</button>
           </div>
         ) : (
-          jobs.map((job, idx) => <JobCard key={idx} job={job} />)
+          jobs.map((job, idx) => <JobCard key={job._id || idx} job={job} compact={viewMode === 'compact'} />)
         )}
       </div>
     </div>
