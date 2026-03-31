@@ -194,6 +194,11 @@ const JobCard = ({ job, compact = false }) => {
                             title="Copy title">
                             <Copy className="w-3.5 h-3.5" />
                         </button>
+                        <button onClick={() => copyText(url)}
+                            className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 shrink-0"
+                            title="Copy job URL">
+                            <ExternalLink className="w-3.5 h-3.5" />
+                        </button>
                         {postedDateLabel && (
                             <span className="text-xs text-gray-400 font-normal">📅 {postedDateLabel} · {postedAgo}</span>
                         )}
