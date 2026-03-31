@@ -20,9 +20,9 @@ const defaultFilters = {
   minBudget:            '',
   maxBudget:            '',
   clientCountry:        '',
-  clientPhoneVerified:  'any',
-  clientPaymentVerified:'any',
-  pricingModel:         'any',
+  clientPhoneVerified:  [],
+  clientPaymentVerified:[],
+  pricingModel:         [],
   clientRating:         '',
   clientRatingOp:       'any',
   clientSpend:          '',
@@ -31,10 +31,10 @@ const defaultFilters = {
   avgHourlyRateOp:      'any',
   startDate:            format(subDays(new Date(), 1), 'yyyy-MM-dd'),
   endDate:              format(new Date(), 'yyyy-MM-dd'),
-  profile:              'any',
-  semanticVerdict:      'any',
+  profile:              [],
+  semanticVerdict:      [],
   mainCategory:         [],
-  experienceLevel:      'any',
+  experienceLevel:      [],
   minRelevanceScore:    '',
 };
 
@@ -142,11 +142,15 @@ const JobsPage = () => {
   const [viewMode, setViewMode]           = useState('detailed');
   const [liveActive, setLiveActive]       = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
-  const filtersRef = useRef(filters);
-  const limitRef   = useRef(limit);
+  const filtersRef   = useRef(filters);
+  const limitRef     = useRef(limit);
+  const sortByRef    = useRef(sortBy);
+  const sortOrderRef = useRef(sortOrder);
 
   useEffect(() => { filtersRef.current = filters; }, [filters]);
   useEffect(() => { limitRef.current = limit; }, [limit]);
+  useEffect(() => { sortByRef.current = sortBy; }, [sortBy]);
+  useEffect(() => { sortOrderRef.current = sortOrder; }, [sortOrder]);
 
   useEffect(() => {
     axios.get('/kb/list').then(r => setProfiles(r.data?.data?.profiles || [])).catch(() => {});
@@ -173,7 +177,7 @@ const JobsPage = () => {
     return () => socket.disconnect();
   }, []);
 
-  const fetchJobs = useCallback(async (f = filters, sb = sortBy, so = sortOrder, lim = limit) => {
+  const fetchJobs = useCallback(async (f = filtersRef.current, sb = sortByRef.current, so = sortOrderRef.current, lim = limitRef.current) => {
     try {
       setLoading(true);
       const q = { limit: lim, sortBy: sb, sortOrder: so };
@@ -216,6 +220,12 @@ const JobsPage = () => {
     setFilters(u);
     const operatorOnlyFields = ['clientRatingOp', 'clientSpendOp', 'avgHourlyRateOp'];
     if (!operatorOnlyFields.includes(name)) fetchJobs(u);
+  };
+
+  const handleMSChange = (name, vals) => {
+    const u = { ...filters, [name]: vals };
+    setFilters(u);
+    fetchJobs(u);
   };
 
   const clearFilters = () => {
@@ -262,7 +272,7 @@ const JobsPage = () => {
   }).length;
 
   const filtersApplied = hasActiveFilters(filters);
-  const pct = totalFiltered > 0 ? ((jobs.length / totalFiltered) * 100).toFixed(1) : '0';
+  const pct = totalAll > 0 ? ((totalFiltered / totalAll) * 100).toFixed(1) : '0';
 
   return (
     <div className="p-4 space-y-3">
@@ -342,13 +352,12 @@ const JobsPage = () => {
               </FI>
             </>}
             <FI label="Type">
-              <CS name="pricingModel" value={filters.pricingModel} onSel={handleSel} width="w-24"
-                options={[{ value: 'any', label: 'Any' }, { value: 'fixed', label: 'Fixed' }, { value: 'hourly', label: 'Hourly' }]} />
+              <MSDropdown selected={filters.pricingModel} options={['Fixed', 'Hourly']}
+                onChange={vals => handleMSChange('pricingModel', vals)} placeholder="Any" width="w-24" />
             </FI>
             <FI label="Level">
-              <CS name="experienceLevel" value={filters.experienceLevel} onSel={handleSel} width="w-28"
-                options={[{ value: 'any', label: 'Any' }, { value: 'Entry Level', label: 'Entry' },
-                  { value: 'Intermediate', label: 'Mid' }, { value: 'Expert', label: 'Expert' }]} />
+              <MSDropdown selected={filters.experienceLevel} options={['Entry Level', 'Intermediate', 'Expert']}
+                onChange={vals => handleMSChange('experienceLevel', vals)} placeholder="Any" width="w-32" />
             </FI>
             <FI label="Country">
               <Input name="clientCountry" value={filters.clientCountry} onChange={handleChange}
@@ -380,21 +389,21 @@ const JobsPage = () => {
                 inputVal={filters.avgHourlyRate} onSel={handleSel} onChange={handleChange} />
             </FI>
             <FI label="Phone">
-              <CS name="clientPhoneVerified" value={filters.clientPhoneVerified} onSel={handleSel} width="w-16"
-                options={[{ value: 'any', label: 'Any' }, { value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]} />
+              <MSDropdown selected={filters.clientPhoneVerified} options={['Verified', 'Unverified']}
+                onChange={vals => handleMSChange('clientPhoneVerified', vals)} placeholder="Any" width="w-28" />
             </FI>
             <FI label="Payment">
-              <CS name="clientPaymentVerified" value={filters.clientPaymentVerified} onSel={handleSel} width="w-16"
-                options={[{ value: 'any', label: 'Any' }, { value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]} />
+              <MSDropdown selected={filters.clientPaymentVerified} options={['Verified', 'Unverified']}
+                onChange={vals => handleMSChange('clientPaymentVerified', vals)} placeholder="Any" width="w-28" />
             </FI>
             <div className="w-px h-4 bg-gray-300 mx-1 hidden sm:block" />
             <FI label="Matched Profile">
-              <CS name="profile" value={filters.profile} onSel={handleSel} width="w-36"
-                options={[{ value: 'any', label: 'Any' }, ...profiles.map(p => ({ value: p.profileName, label: p.profileName }))]} />
+              <MSDropdown selected={filters.profile} options={profiles.map(p => p.profileName)}
+                onChange={vals => handleMSChange('profile', vals)} placeholder="Any" width="w-36" />
             </FI>
             <FI label="Semantic">
-              <CS name="semanticVerdict" value={filters.semanticVerdict} onSel={handleSel} width="w-24"
-                options={[{ value: 'any', label: 'Any' }, { value: 'Yes', label: '✅ Yes' }, { value: 'Maybe', label: '🟡 Maybe' }, { value: 'No', label: '❌ No' }]} />
+              <MSDropdown selected={filters.semanticVerdict} options={['Yes', 'Maybe', 'No']}
+                onChange={vals => handleMSChange('semanticVerdict', vals)} placeholder="Any" width="w-28" />
             </FI>
             <FI label="Category">
               <MSDropdown
@@ -470,7 +479,7 @@ const JobsPage = () => {
           </div>
           {totalFiltered > 0 && (
             <span className="text-xs px-2 py-0.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-full font-medium">
-              {pct}% of filtered
+              {pct}% of total
             </span>
           )}
           {filtersApplied ? (

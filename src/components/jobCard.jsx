@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format, isValid } from 'date-fns';
 import { BadgeCheck, PhoneCall, MapPin, ChevronDown, ChevronUp, X, RotateCcw, Copy, RefreshCw, ExternalLink } from 'lucide-react';
 import { reprocessSingleJob, generateProposal } from '../apis/jobs';
 import { toast } from "sonner";
@@ -130,7 +130,10 @@ const JobCard = ({ job, compact = false }) => {
 
     const handleCopyProposal = () => copyText(proposalText);
 
-    const postedAgo = formatDistanceToNow(new Date(postedDate), { addSuffix: true });
+    const parsedDate = postedDate ? new Date(postedDate) : null;
+    const dateIsValid = parsedDate && isValid(parsedDate);
+    const postedAgo = dateIsValid ? formatDistanceToNow(parsedDate, { addSuffix: true }) : 'Unknown date';
+    const postedDateLabel = dateIsValid ? format(parsedDate, 'MMM d, yyyy') : '';
 
     const topKeywords = Object.entries(matchedKeywordBreakdown)
         .sort(([, a], [, b]) => b.weighted - a.weighted)
@@ -167,7 +170,7 @@ const JobCard = ({ job, compact = false }) => {
                 </button>
                 {budget && <span className="text-xs text-green-700 font-medium shrink-0">{budget}</span>}
                 {clientCountry && <span className="text-xs text-gray-400 shrink-0">{clientCountry}</span>}
-                {postedAgo && <span className="text-xs text-gray-400 shrink-0 hidden sm:block">{postedAgo}</span>}
+                {postedDateLabel && <span className="text-xs text-gray-400 shrink-0 hidden sm:block">📅 {postedDateLabel}</span>}
                 <a href={job.url} target="_blank" rel="noopener noreferrer"
                     className="opacity-0 group-hover:opacity-100 shrink-0 p-1 rounded hover:bg-gray-200 transition-opacity">
                     <ExternalLink className="w-3 h-3 text-gray-400" />
@@ -181,7 +184,7 @@ const JobCard = ({ job, compact = false }) => {
             {/* Header */}
             <TooltipProvider>
                 <div className="flex justify-between items-center flex-wrap">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                         <a href={`/jobs/${job._id}`} target="_blank" rel="noopener noreferrer"
                             className="text-lg font-semibold text-blue-700 hover:underline">
                             {title}
@@ -191,6 +194,9 @@ const JobCard = ({ job, compact = false }) => {
                             title="Copy title">
                             <Copy className="w-3.5 h-3.5" />
                         </button>
+                        {postedDateLabel && (
+                            <span className="text-xs text-gray-400 font-normal">📅 {postedDateLabel} · {postedAgo}</span>
+                        )}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 text-sm">
