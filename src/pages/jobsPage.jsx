@@ -142,10 +142,11 @@ const JobsPage = () => {
   const [viewMode, setViewMode]           = useState('detailed');
   const [liveActive, setLiveActive]       = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
-  const filtersRef   = useRef(filters);
-  const limitRef     = useRef(limit);
-  const sortByRef    = useRef(sortBy);
-  const sortOrderRef = useRef(sortOrder);
+  const filtersRef    = useRef(filters);
+  const limitRef      = useRef(limit);
+  const sortByRef     = useRef(sortBy);
+  const sortOrderRef  = useRef(sortOrder);
+  const didMountRef   = useRef(false);
 
   useEffect(() => { filtersRef.current = filters; }, [filters]);
   useEffect(() => { limitRef.current = limit; }, [limit]);
@@ -203,7 +204,12 @@ const JobsPage = () => {
   };
 
   useEffect(() => { applyDateRange(dateRange); }, []);
-  useEffect(() => { fetchJobs(filters, sortBy, sortOrder, limit); }, [sortBy, sortOrder, limit]);
+  useEffect(() => {
+    // Skip the very first mount — applyDateRange above handles the initial fetch.
+    // Only re-fetch when sort/limit actually change after mount.
+    if (!didMountRef.current) { didMountRef.current = true; return; }
+    fetchJobs(filtersRef.current, sortBy, sortOrder, limit);
+  }, [sortBy, sortOrder, limit]);
 
   const handleChange = e => {
     const { name, value, type } = e.target;

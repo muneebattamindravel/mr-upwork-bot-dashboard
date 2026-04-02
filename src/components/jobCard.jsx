@@ -133,7 +133,7 @@ const JobCard = ({ job, compact = false }) => {
     const parsedDate = postedDate ? new Date(postedDate) : null;
     const dateIsValid = parsedDate && isValid(parsedDate);
     const postedAgo = dateIsValid ? formatDistanceToNow(parsedDate, { addSuffix: true }) : 'Unknown date';
-    const postedDateLabel = dateIsValid ? format(parsedDate, 'MMM d, yyyy') : '';
+    const postedDateLabel = dateIsValid ? format(parsedDate, 'MMM d, yyyy, h:mm a') : '';
 
     const topKeywords = Object.entries(matchedKeywordBreakdown)
         .sort(([, a], [, b]) => b.weighted - a.weighted)
@@ -364,7 +364,6 @@ const JobCard = ({ job, compact = false }) => {
                 {jobCategory  && <div>📂 {jobCategory}</div>}
                 <div>⚙️ {experienceLevel}</div>
                 <div>📈 {projectType}</div>
-                <div>🕒 {postedAgo}</div>
                 <div>🔁 Connects: {requiredConnects}</div>
                 <div>💼 {pricingModel}</div>
                 {pricingModel === 'Fixed' ? (
