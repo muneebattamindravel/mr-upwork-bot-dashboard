@@ -452,15 +452,18 @@ const JobsPage = () => {
               </Select>
             </FI>
             {/* Prominent search bar — last before Apply */}
-            <div className="flex-1 min-w-[200px] max-w-sm">
+            <div className="flex-1 min-w-[200px] max-w-sm space-y-0.5">
               <Input
                 name="keyword"
                 value={filters.keyword}
                 onChange={handleChange}
                 onKeyDown={e => { if (e.key === 'Enter') fetchJobs(filters); }}
                 className="h-8 text-sm px-3 border-purple-300 focus:border-purple-500 rounded-lg w-full"
-                placeholder="🔍 Search title, description…"
+                placeholder='🔍 Search title, description…'
               />
+              <p className="text-[10px] text-gray-400 px-1 leading-tight">
+                AND logic · <span className="font-mono">"exact phrase"</span> · <span className="font-mono">-exclude</span> · synonyms auto-expanded (node→nodejs, frontend→react/angular…)
+              </p>
             </div>
             <LoadingButton loading={loading} onClick={() => fetchJobs(filters)}
               className="h-8 px-5 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium">
