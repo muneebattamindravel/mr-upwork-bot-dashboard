@@ -5,7 +5,7 @@ import { Select, SelectItem, SelectTrigger, SelectContent, SelectValue } from '@
 import { toast } from 'sonner';
 import LoadingButton from '@/components/ui/loading-button';
 import JobCard from '@/components/jobCard';
-import { getFilteredJobs } from '@/apis/jobs';
+import { getFilteredJobs, startEmbedAllSearch, getEmbedAllSearchStatus } from '@/apis/jobs';
 import { subDays, format } from 'date-fns';
 import { RotateCcw, Download, SlidersHorizontal, X, Loader2, LayoutList, AlignJustify, Wifi, WifiOff } from 'lucide-react';
 import { reprocessJobsStaticOnly, deleteAllJobs } from '../apis/jobs';
@@ -142,20 +142,26 @@ const JobsPage = () => {
   const [viewMode, setViewMode]           = useState('detailed');
   const [liveActive, setLiveActive]       = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [searchMode, setSearchMode]       = useState('keyword'); // 'keyword' | 'semantic' | 'hybrid'
+  const [embedProgress, setEmbedProgress] = useState(null); // { running, done, total, embedded, errors }
+  const [embeddingAll, setEmbeddingAll]   = useState(false);
   const filtersRef    = useRef(filters);
   const limitRef      = useRef(limit);
   const sortByRef     = useRef(sortBy);
   const sortOrderRef  = useRef(sortOrder);
   const didMountRef   = useRef(false);
 
+  const searchModeRef = useRef(searchMode);
   useEffect(() => { filtersRef.current = filters; }, [filters]);
   useEffect(() => { limitRef.current = limit; }, [limit]);
   useEffect(() => { sortByRef.current = sortBy; }, [sortBy]);
   useEffect(() => { sortOrderRef.current = sortOrder; }, [sortOrder]);
+  useEffect(() => { searchModeRef.current = searchMode; }, [searchMode]);
 
   useEffect(() => {
     axios.get('/kb/list').then(r => setProfiles(r.data?.data?.profiles || [])).catch(() => {});
     axios.get('/settings').then(r => setScraperCategories(r.data?.data?.scraperCategories || [])).catch(() => {});
+    getEmbedAllSearchStatus().then(r => setEmbedProgress(r.data?.data)).catch(() => {});
   }, []);
 
   // ── Socket.IO live feed ────────────────────────────────────────────────────
@@ -178,10 +184,33 @@ const JobsPage = () => {
     return () => socket.disconnect();
   }, []);
 
-  const fetchJobs = useCallback(async (f = filtersRef.current, sb = sortByRef.current, so = sortOrderRef.current, lim = limitRef.current) => {
+  useEffect(() => {
+    if (!embedProgress?.running) return;
+    const interval = setInterval(async () => {
+      try {
+        const r = await getEmbedAllSearchStatus();
+        const s = r.data?.data;
+        setEmbedProgress(s);
+        if (!s?.running) clearInterval(interval);
+      } catch { clearInterval(interval); }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [embedProgress?.running]);
+
+  const handleEmbedAll = async () => {
+    try {
+      setEmbeddingAll(true);
+      const r = await startEmbedAllSearch();
+      setEmbedProgress(r.data?.data);
+      toast.success('Job indexing started — this runs in the background');
+    } catch { toast.error('Failed to start indexing'); }
+    finally { setEmbeddingAll(false); }
+  };
+
+  const fetchJobs = useCallback(async (f = filtersRef.current, sb = sortByRef.current, so = sortOrderRef.current, lim = limitRef.current, sm = searchModeRef.current) => {
     try {
       setLoading(true);
-      const q = { limit: lim, sortBy: sb, sortOrder: so };
+      const q = { limit: lim, sortBy: sb, sortOrder: so, searchMode: sm };
       Object.entries(f).forEach(([k, v]) => {
         if (v === '' || v === null || v === undefined || v === 'any') return;
         if (Array.isArray(v)) { if (v.length > 0) q[k] = v.join('|||'); }
@@ -451,18 +480,35 @@ const JobsPage = () => {
                 </SelectContent>
               </Select>
             </FI>
-            {/* Prominent search bar — last before Apply */}
-            <div className="flex-1 min-w-[200px] max-w-sm space-y-0.5">
+            {/* Search mode toggle */}
+            <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden shrink-0">
+              {[
+                { mode: 'keyword',  label: '🔤',  title: 'Keyword — AND logic, partial match, synonyms' },
+                { mode: 'semantic', label: '🧠',  title: 'Semantic — AI intent matching (needs indexing)' },
+                { mode: 'hybrid',   label: '⚡',  title: 'Hybrid — keyword filter + AI ranking' },
+              ].map(({ mode, label, title }) => (
+                <button key={mode} title={title}
+                  onClick={() => { setSearchMode(mode); fetchJobs(filtersRef.current, sortByRef.current, sortOrderRef.current, limitRef.current, mode); }}
+                  className={`px-2.5 py-1.5 text-xs border-r last:border-r-0 transition-colors ${searchMode === mode ? 'bg-purple-600 text-white' : 'hover:bg-gray-50 text-gray-600'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Search input */}
+            <div className="flex-1 min-w-[160px] max-w-xs space-y-0.5">
               <Input
                 name="keyword"
                 value={filters.keyword}
                 onChange={handleChange}
                 onKeyDown={e => { if (e.key === 'Enter') fetchJobs(filters); }}
                 className="h-8 text-sm px-3 border-purple-300 focus:border-purple-500 rounded-lg w-full"
-                placeholder='🔍 Search title, description…'
+                placeholder={searchMode === 'semantic' ? '🧠 Describe what you need…' : searchMode === 'hybrid' ? '⚡ Keywords + AI ranking…' : '🔤 node, "react native", -wordpress…'}
               />
               <p className="text-[10px] text-gray-400 px-1 leading-tight">
-                AND logic · <span className="font-mono">"exact phrase"</span> · <span className="font-mono">-exclude</span> · synonyms auto-expanded (node→nodejs, frontend→react/angular…)
+                {searchMode === 'keyword'  && <>AND logic · <span className="font-mono">"phrase"</span> · <span className="font-mono">-exclude</span> · synonyms auto-expanded</>}
+                {searchMode === 'semantic' && <>AI matches by intent — no keywords needed · requires job indexing</>}
+                {searchMode === 'hybrid'   && <>Keyword-filter candidates then AI-ranked by relevance</>}
               </p>
             </div>
             <LoadingButton loading={loading} onClick={() => fetchJobs(filters)}
@@ -521,6 +567,25 @@ const JobsPage = () => {
           <button onClick={() => fetchJobs()} disabled={loading}
             className="p-1.5 rounded-full border hover:bg-gray-100 disabled:opacity-50" title="Refresh">
             <RotateCcw className={`w-3.5 h-3.5 text-purple-700 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          {/* Embed All index button + progress */}
+          {embedProgress && (
+            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
+              embedProgress.running
+                ? 'bg-blue-50 border-blue-200 text-blue-700'
+                : embedProgress.embedded >= embedProgress.total
+                ? 'bg-green-50 border-green-200 text-green-700'
+                : 'bg-amber-50 border-amber-200 text-amber-700'
+            }`}>
+              {embedProgress.running
+                ? `🧠 Indexing ${embedProgress.done}/${embedProgress.total}…`
+                : `🧠 ${embedProgress.embedded?.toLocaleString()}/${embedProgress.total?.toLocaleString()} indexed`}
+            </span>
+          )}
+          <button onClick={handleEmbedAll} disabled={embeddingAll || embedProgress?.running}
+            className="flex items-center gap-1 px-2.5 py-1 text-xs border rounded hover:bg-gray-100 disabled:opacity-40"
+            title="Index all jobs for semantic search">
+            {embeddingAll || embedProgress?.running ? <Loader2 className="w-3 h-3 animate-spin" /> : '🧠'} Index
           </button>
           <button onClick={exportCSV} disabled={!jobs.length}
             className="flex items-center gap-1 px-2.5 py-1 text-xs border rounded hover:bg-gray-100 disabled:opacity-40">
