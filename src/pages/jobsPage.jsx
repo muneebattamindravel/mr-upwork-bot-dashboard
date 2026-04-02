@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectItem, SelectTrigger, SelectContent, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import LoadingButton from '@/components/ui/loading-button';
 import JobCard from '@/components/jobCard';
@@ -481,19 +482,64 @@ const JobsPage = () => {
               </Select>
             </FI>
             {/* Search mode toggle */}
-            <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden shrink-0">
-              {[
-                { mode: 'keyword',  label: '🔤',  title: 'Keyword — AND logic, partial match, synonyms' },
-                { mode: 'semantic', label: '🧠',  title: 'Semantic — AI intent matching (needs indexing)' },
-                { mode: 'hybrid',   label: '⚡',  title: 'Hybrid — keyword filter + AI ranking' },
-              ].map(({ mode, label, title }) => (
-                <button key={mode} title={title}
-                  onClick={() => { setSearchMode(mode); fetchJobs(filtersRef.current, sortByRef.current, sortOrderRef.current, limitRef.current, mode); }}
-                  className={`px-2.5 py-1.5 text-xs border-r last:border-r-0 transition-colors ${searchMode === mode ? 'bg-purple-600 text-white' : 'hover:bg-gray-50 text-gray-600'}`}>
-                  {label}
-                </button>
-              ))}
-            </div>
+            <TooltipProvider delayDuration={200}>
+              <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden shrink-0">
+                {[
+                  {
+                    mode: 'keyword',
+                    label: '🔤',
+                    heading: 'Keyword Search',
+                    lines: [
+                      'Every word must appear in the job (AND logic).',
+                      '"react native" → exact phrase match.',
+                      '-wordpress → exclude that word.',
+                      'Synonyms auto-expand: node → nodejs,',
+                      'frontend → react/angular/vue/svelte…',
+                    ],
+                  },
+                  {
+                    mode: 'semantic',
+                    label: '🧠',
+                    heading: 'Semantic Search',
+                    lines: [
+                      'AI understands the intent of your query —',
+                      'no keyword overlap needed.',
+                      '"build a chatbot" surfaces GPT Expert,',
+                      'Conversational AI, OpenAI Integration jobs.',
+                      'Requires jobs to be indexed first (🧠 Index button).',
+                    ],
+                  },
+                  {
+                    mode: 'hybrid',
+                    label: '⚡',
+                    heading: 'Hybrid Search',
+                    lines: [
+                      'Best of both modes.',
+                      'Keywords narrow the candidate pool first,',
+                      'then AI re-ranks those results by semantic',
+                      'similarity to your query.',
+                      'Most precise + most intelligent combined.',
+                    ],
+                  },
+                ].map(({ mode, label, heading, lines }) => (
+                  <Tooltip key={mode}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => { setSearchMode(mode); fetchJobs(filtersRef.current, sortByRef.current, sortOrderRef.current, limitRef.current, mode); }}
+                        className={`px-2.5 py-1.5 text-xs border-r last:border-r-0 transition-colors ${searchMode === mode ? 'bg-purple-600 text-white' : 'hover:bg-gray-50 text-gray-600'}`}>
+                        {label}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-[220px] p-3 text-xs leading-relaxed">
+                      <p className="font-semibold text-sm mb-1.5">{label} {heading}</p>
+                      {lines.map((line, i) => (
+                        <p key={i} className="text-gray-300">{line}</p>
+                      ))}
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+            </TooltipProvider>
 
             {/* Search input */}
             <div className="flex-1 min-w-[160px] max-w-xs space-y-0.5">
