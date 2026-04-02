@@ -530,8 +530,8 @@ const JobsPage = () => {
                         {label}
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-[220px] p-3 text-xs leading-relaxed">
-                      <p className="font-semibold text-sm mb-1.5">{label} {heading}</p>
+                    <TooltipContent side="bottom" className="max-w-[220px] p-3 text-xs leading-relaxed bg-gray-900 border-gray-700 text-white">
+                      <p className="font-semibold text-sm mb-1.5 text-white">{label} {heading}</p>
                       {lines.map((line, i) => (
                         <p key={i} className="text-gray-300">{line}</p>
                       ))}
