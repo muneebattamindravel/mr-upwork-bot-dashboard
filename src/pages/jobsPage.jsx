@@ -556,11 +556,22 @@ const JobsPage = () => {
                 className="h-8 text-sm px-3 border-purple-300 focus:border-purple-500 rounded-lg w-full"
                 placeholder={searchMode === 'semantic' ? '🧠 Describe what you need…' : searchMode === 'hybrid' ? '⚡ Keywords + AI ranking…' : '🔤 node, "react native", -wordpress…'}
               />
-              <p className="text-[10px] text-gray-400 px-1 leading-tight">
-                {searchMode === 'keyword'  && <>AND logic · <span className="font-mono">"phrase"</span> · <span className="font-mono">-exclude</span> · synonyms auto-expanded</>}
-                {searchMode === 'semantic' && <>AI matches by intent — no keywords needed · requires job indexing</>}
-                {searchMode === 'hybrid'   && <>Keyword-filter candidates then AI-ranked by relevance</>}
-              </p>
+              {/* Persistent warning when AI modes selected but jobs not yet indexed */}
+              {(searchMode === 'semantic' || searchMode === 'hybrid') && embedProgress != null && embedProgress.embedded === 0 ? (
+                <p className="text-[10px] px-1 leading-tight text-amber-600 font-medium">
+                  ⚠️ No jobs indexed yet — click 🧠 Index to enable AI search. Showing keyword results until then.
+                </p>
+              ) : (searchMode === 'semantic' || searchMode === 'hybrid') && embedProgress != null && embedProgress.embedded < embedProgress.total ? (
+                <p className="text-[10px] px-1 leading-tight text-blue-600">
+                  🧠 {embedProgress.embedded?.toLocaleString()}/{embedProgress.total?.toLocaleString()} jobs indexed — AI search covers indexed jobs only.
+                </p>
+              ) : (
+                <p className="text-[10px] text-gray-400 px-1 leading-tight">
+                  {searchMode === 'keyword'  && <>AND logic · <span className="font-mono">"phrase"</span> · <span className="font-mono">-exclude</span> · synonyms auto-expanded</>}
+                  {searchMode === 'semantic' && <>AI matches by intent — describe what you need in plain words</>}
+                  {searchMode === 'hybrid'   && <>Keyword-filter candidates then AI-ranked by relevance</>}
+                </p>
+              )}
             </div>
             <LoadingButton loading={loading} onClick={() => fetchJobs(filters)}
               className="h-8 px-5 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium">
