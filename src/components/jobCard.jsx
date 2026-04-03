@@ -180,45 +180,49 @@ const JobCard = ({ job, compact = false }) => {
         <div className="bg-white shadow-md border rounded-lg p-4 space-y-3 relative">
             {/* Header */}
             <TooltipProvider>
-                <div className="flex justify-between items-center flex-wrap">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <a href={`/jobs/${job._id}`} target="_blank" rel="noopener noreferrer"
-                            className="text-lg font-semibold text-blue-700 hover:underline">
-                            {title}
-                        </a>
-                        <button onClick={() => copyText(title)}
-                            className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 shrink-0"
-                            title="Copy title">
-                            <Copy className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => copyText(url)}
-                            className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 shrink-0"
-                            title="Copy job URL">
-                            <ExternalLink className="w-3.5 h-3.5" />
-                        </button>
+                <div className="flex items-start gap-3">
+                    {/* Left: title + date — takes remaining space, wraps internally */}
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                            <a href={`/jobs/${job._id}`} target="_blank" rel="noopener noreferrer"
+                                className="text-lg font-semibold text-blue-700 hover:underline">
+                                {title}
+                            </a>
+                            <button onClick={() => copyText(title)}
+                                className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 shrink-0"
+                                title="Copy title">
+                                <Copy className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => copyText(url)}
+                                className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 shrink-0"
+                                title="Copy job URL">
+                                <ExternalLink className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
                         {postedDateLabel && (
-                            <span className="text-xs text-gray-400 font-normal">📅 {postedDateLabel} · {postedAgo}</span>
+                            <span className="text-xs text-gray-400 font-normal mt-0.5 block">📅 {postedDateLabel} · {postedAgo}</span>
                         )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                    {/* Right: scores — shrink-0 so they never wrap to next line */}
+                    <div className="shrink-0 flex items-center gap-2 text-sm">
                         {/* Static Relevance Breakdown with Semantic Tooltip */}
-                        <div className="text-gray-700 flex flex-wrap gap-1 items-center">
-                            🔑 Keyword {keywordScore}% | 📊 Field {fieldScore}% |{" "}
+                        <div className="text-gray-700 flex items-center gap-1 whitespace-nowrap">
+                            🔑 {keywordScore}% | 📊 {fieldScore}% |{" "}
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <span className="underline cursor-help text-blue-700 font-medium">
-                                        🤖 Semantic {job.semanticRelevance?.score ?? "N/A"}%
+                                    <span className="underline cursor-help text-blue-700 font-medium whitespace-nowrap">
+                                        🤖 {job.semanticRelevance?.score ?? "N/A"}%
                                     </span>
                                 </TooltipTrigger>
-                                <TooltipContent className="max-w-sm p-2 text-sm">
-                                    <p className="font-semibold mb-1">🤖 Semantic Relevance</p>
-                                    <p>
-                                        <strong>Verdict:</strong>{" "}
+                                <TooltipContent side="bottom" className="max-w-sm p-2 text-sm bg-gray-900 border-gray-700 text-white">
+                                    <p className="font-semibold mb-1 text-white">🤖 Semantic Relevance</p>
+                                    <p className="text-gray-300">
+                                        <strong className="text-white">Verdict:</strong>{" "}
                                         {job.semanticRelevance?.verdict || "N/A"}
                                     </p>
-                                    <p>
-                                        <strong>Reason:</strong>{" "}
+                                    <p className="text-gray-300">
+                                        <strong className="text-white">Reason:</strong>{" "}
                                         {job.semanticRelevance?.reason || "No reason provided."}
                                     </p>
                                 </TooltipContent>
@@ -227,10 +231,10 @@ const JobCard = ({ job, compact = false }) => {
 
                         {/* Rule-Based Relevance Score Badge */}
                         <span
-                            className={`font-semibold text-white px-2.5 py-1 rounded shadow ${getRelevanceColor(relevanceScore)}`}
+                            className={`font-semibold text-white px-2.5 py-1 rounded shadow whitespace-nowrap ${getRelevanceColor(relevanceScore)}`}
                             title="Rule-Based Relevance"
                         >
-                            Relevance: {relevanceScore}%
+                            {relevanceScore}%
                         </span>
 
                         {/* Reprocess button */}
