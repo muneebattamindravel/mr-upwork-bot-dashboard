@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import LoadingButton from '@/components/ui/loading-button';
 import JobCard from '@/components/jobCard';
 import { getFilteredJobs } from '@/apis/jobs';
+import { getTopCountries } from '@/apis/analytics';
 import { subDays, format } from 'date-fns';
 import { RotateCcw, Download, SlidersHorizontal, X, Loader2, LayoutList, AlignJustify, Wifi, WifiOff } from 'lucide-react';
 import { reprocessJobsStaticOnly, deleteAllJobs } from '../apis/jobs';
@@ -19,7 +20,7 @@ const defaultFilters = {
   keyword:              '',
   minBudget:            '',
   maxBudget:            '',
-  clientCountry:        '',
+  clientCountry:        [],
   clientPhoneVerified:  [],
   clientPaymentVerified:[],
   pricingModel:         [],
@@ -138,6 +139,7 @@ const JobsPage = () => {
   const [reprocessing, setReprocessing]   = useState(false);
   const [profiles, setProfiles]           = useState([]);
   const [scraperCategories, setScraperCategories] = useState([]);
+  const [topCountries, setTopCountries]           = useState([]);
   const [limit, setLimit]                 = useState(100);
   const [viewMode, setViewMode]           = useState('detailed');
   const [liveActive, setLiveActive]       = useState(false);
@@ -156,6 +158,7 @@ const JobsPage = () => {
   useEffect(() => {
     axios.get('/kb/list').then(r => setProfiles(r.data?.data?.profiles || [])).catch(() => {});
     axios.get('/settings').then(r => setScraperCategories(r.data?.data?.scraperCategories || [])).catch(() => {});
+    getTopCountries(15).then(r => setTopCountries((r.data?.data || []).map(c => c.country))).catch(() => {});
   }, []);
 
   // ── Socket.IO live feed ────────────────────────────────────────────────────
@@ -366,8 +369,8 @@ const JobsPage = () => {
                 onChange={vals => handleMSChange('experienceLevel', vals)} placeholder="Any" width="w-32" />
             </FI>
             <FI label="Country">
-              <Input name="clientCountry" value={filters.clientCountry} onChange={handleChange}
-                className="h-7 text-xs px-2 w-20 border-gray-200" placeholder="US, UK…" />
+              <MSDropdown selected={filters.clientCountry} options={topCountries}
+                onChange={vals => handleMSChange('clientCountry', vals)} placeholder="Any" width="w-36" />
             </FI>
             <FI label="Budget $">
               <Input name="minBudget" type="number" value={filters.minBudget} onChange={handleChange}
