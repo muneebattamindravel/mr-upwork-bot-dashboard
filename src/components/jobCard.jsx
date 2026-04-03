@@ -25,10 +25,7 @@ const FIELD_LABELS = {
     budgetHourly: '⏱️ Budget (Hourly)',
     clientSpend: '💰 Total Spend',
     clientHireRate: '🧑‍💼 Hire Rate',
-    clientRating: '⭐ Client Rating',
-    clientReviews: '🗣️ Client Reviews',
-    requiredConnects: '🔁 Required Connects',
-    clientAverageHourlyRate: '⚖️ Avg Hourly Rate'
+    requiredConnects: '🔁 Required Connects'
 };
 
 const JobCard = ({ job, compact = false }) => {
@@ -395,8 +392,6 @@ const JobCard = ({ job, compact = false }) => {
                 <div>📊 Jobs Posted: {clientJobsPosted}</div>
                 <div>🧑‍💼 Hires: {clientHires} ({clientHireRate}%)</div>
                 <div>📅 Member Since: {clientMemberSince}</div>
-                <div>⚖️ Avg Rate: ${clientAverageHourlyRate || 'N/A'}</div>
-                <div>⭐ Rating: {clientRating} ({clientReviews} reviews)</div>
             </div>
 
             {/* View Description Button */}

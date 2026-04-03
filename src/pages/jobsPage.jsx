@@ -24,12 +24,8 @@ const defaultFilters = {
   clientPhoneVerified:  [],
   clientPaymentVerified:[],
   pricingModel:         [],
-  clientRating:         '',
-  clientRatingOp:       'any',
   clientSpend:          '',
   clientSpendOp:        'any',
-  avgHourlyRate:        '',
-  avgHourlyRateOp:      'any',
   startDate:            format(subDays(new Date(), 1), 'yyyy-MM-dd'),
   endDate:              format(new Date(), 'yyyy-MM-dd'),
   profile:              [],
@@ -223,11 +219,9 @@ const JobsPage = () => {
 
   const handleSel = (name, value) => {
     const u = { ...filters, [name]: value };
-    if (name === 'clientRatingOp'  && value === 'any') u.clientRating = '';
-    if (name === 'clientSpendOp'   && value === 'any') u.clientSpend = '';
-    if (name === 'avgHourlyRateOp' && value === 'any') u.avgHourlyRate = '';
+    if (name === 'clientSpendOp' && value === 'any') u.clientSpend = '';
     setFilters(u);
-    const operatorOnlyFields = ['clientRatingOp', 'clientSpendOp', 'avgHourlyRateOp'];
+    const operatorOnlyFields = ['clientSpendOp'];
     if (!operatorOnlyFields.includes(name)) fetchJobs(u);
   };
 
@@ -385,17 +379,9 @@ const JobsPage = () => {
 
           {/* Row 2 */}
           <div className="flex flex-wrap gap-x-4 gap-y-2 items-center">
-            <FI label="Rating">
-              <OI opName="clientRatingOp" opVal={filters.clientRatingOp} inputName="clientRating"
-                inputVal={filters.clientRating} onSel={handleSel} onChange={handleChange} />
-            </FI>
             <FI label="Spend $">
               <OI opName="clientSpendOp" opVal={filters.clientSpendOp} inputName="clientSpend"
                 inputVal={filters.clientSpend} onSel={handleSel} onChange={handleChange} />
-            </FI>
-            <FI label="Avg $/hr">
-              <OI opName="avgHourlyRateOp" opVal={filters.avgHourlyRateOp} inputName="avgHourlyRate"
-                inputVal={filters.avgHourlyRate} onSel={handleSel} onChange={handleChange} />
             </FI>
             <FI label="Phone">
               <MSDropdown selected={filters.clientPhoneVerified} options={['Verified', 'Unverified']}
