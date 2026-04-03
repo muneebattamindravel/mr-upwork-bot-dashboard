@@ -417,17 +417,16 @@ const JobsPage = () => {
 
           <div className="border-t border-gray-200" />
 
-          {/* Row 3 — Sort + prominent Search + Apply */}
+          {/* Row 3 — Sort + Search + Apply */}
           <div className="flex flex-wrap items-center gap-3">
             <FI label="Sort">
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="h-7 text-xs px-2 w-36 border-gray-200"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-white text-black text-xs">
-                  <SelectItem value="postedDate"    className="text-xs py-1">📅 Posted Date</SelectItem>
+                  <SelectItem value="postedDate"     className="text-xs py-1">📅 Posted Date</SelectItem>
                   <SelectItem value="relevanceScore" className="text-xs py-1">🧠 Relevance</SelectItem>
-                  <SelectItem value="clientRating"  className="text-xs py-1">⭐ Rating</SelectItem>
-                  <SelectItem value="clientSpend"   className="text-xs py-1">💰 Spend</SelectItem>
-                  <SelectItem value="minRange"      className="text-xs py-1">💵 Budget</SelectItem>
+                  <SelectItem value="clientSpend"    className="text-xs py-1">💰 Spend</SelectItem>
+                  <SelectItem value="minRange"       className="text-xs py-1">💵 Budget</SelectItem>
                 </SelectContent>
               </Select>
             </FI>
@@ -440,25 +439,23 @@ const JobsPage = () => {
                 </SelectContent>
               </Select>
             </FI>
-            {/* Search input */}
-            <div className="flex-1 min-w-[160px] max-w-xs space-y-0.5">
-              <Input
-                name="keyword"
-                value={filters.keyword}
-                onChange={handleChange}
-                onKeyDown={e => { if (e.key === 'Enter') fetchJobs(filters); }}
-                className="h-8 text-sm px-3 border-purple-300 focus:border-purple-500 rounded-lg w-full"
-                placeholder="Search: unity developer, react, unreal engine…"
-              />
-              <p className="text-[10px] text-gray-400 px-1 leading-tight">
-                Comma-separated phrases · each term matched as substring in title, description &amp; category
-              </p>
-            </div>
+            {/* Search input — grows to fill remaining space */}
+            <Input
+              name="keyword"
+              value={filters.keyword}
+              onChange={handleChange}
+              onKeyDown={e => { if (e.key === 'Enter') fetchJobs(filters); }}
+              className="h-7 text-xs px-3 border-purple-300 focus:border-purple-500 rounded-lg flex-1 min-w-[180px] max-w-sm"
+              placeholder="Search: unity developer, react, unreal engine…"
+            />
             <LoadingButton loading={loading} onClick={() => fetchJobs(filters)}
-              className="h-8 px-5 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium">
+              className="h-7 px-5 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium shrink-0">
               Apply
             </LoadingButton>
           </div>
+          <p className="text-[10px] text-gray-400 leading-tight">
+            💡 Comma-separated phrases · each term matched as substring in title, description &amp; category
+          </p>
         </div>
       )}
 
