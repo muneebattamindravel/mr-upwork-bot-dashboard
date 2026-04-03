@@ -34,8 +34,3 @@ export const getJobById = (id) => {
   return axios.get(`/jobs/${id}`);
 };
 
-export const startEmbedAllSearch = (force = false) =>
-  axios.post(`/jobs/embed-all-search${force ? '?force=true' : ''}`);
-
-export const getEmbedAllSearchStatus = () =>
-  axios.get('/jobs/embed-all-search-status');

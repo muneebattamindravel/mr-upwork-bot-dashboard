@@ -2,11 +2,10 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectItem, SelectTrigger, SelectContent, SelectValue } from '@/components/ui/select';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import LoadingButton from '@/components/ui/loading-button';
 import JobCard from '@/components/jobCard';
-import { getFilteredJobs, startEmbedAllSearch, getEmbedAllSearchStatus } from '@/apis/jobs';
+import { getFilteredJobs } from '@/apis/jobs';
 import { subDays, format } from 'date-fns';
 import { RotateCcw, Download, SlidersHorizontal, X, Loader2, LayoutList, AlignJustify, Wifi, WifiOff } from 'lucide-react';
 import { reprocessJobsStaticOnly, deleteAllJobs } from '../apis/jobs';
@@ -143,26 +142,20 @@ const JobsPage = () => {
   const [viewMode, setViewMode]           = useState('detailed');
   const [liveActive, setLiveActive]       = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
-  const [searchMode, setSearchMode]       = useState('keyword'); // 'keyword' | 'semantic' | 'hybrid'
-  const [embedProgress, setEmbedProgress] = useState(null); // { running, done, total, embedded, errors }
-  const [embeddingAll, setEmbeddingAll]   = useState(false);
   const filtersRef    = useRef(filters);
   const limitRef      = useRef(limit);
   const sortByRef     = useRef(sortBy);
   const sortOrderRef  = useRef(sortOrder);
   const didMountRef   = useRef(false);
 
-  const searchModeRef = useRef(searchMode);
   useEffect(() => { filtersRef.current = filters; }, [filters]);
   useEffect(() => { limitRef.current = limit; }, [limit]);
   useEffect(() => { sortByRef.current = sortBy; }, [sortBy]);
   useEffect(() => { sortOrderRef.current = sortOrder; }, [sortOrder]);
-  useEffect(() => { searchModeRef.current = searchMode; }, [searchMode]);
 
   useEffect(() => {
     axios.get('/kb/list').then(r => setProfiles(r.data?.data?.profiles || [])).catch(() => {});
     axios.get('/settings').then(r => setScraperCategories(r.data?.data?.scraperCategories || [])).catch(() => {});
-    getEmbedAllSearchStatus().then(r => setEmbedProgress(r.data?.data)).catch(() => {});
   }, []);
 
   // ── Socket.IO live feed ────────────────────────────────────────────────────
@@ -185,46 +178,18 @@ const JobsPage = () => {
     return () => socket.disconnect();
   }, []);
 
-  useEffect(() => {
-    if (!embedProgress?.running) return;
-    const interval = setInterval(async () => {
-      try {
-        const r = await getEmbedAllSearchStatus();
-        const s = r.data?.data;
-        setEmbedProgress(s);
-        if (!s?.running) clearInterval(interval);
-      } catch { clearInterval(interval); }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [embedProgress?.running]);
-
-  const handleEmbedAll = async () => {
-    try {
-      setEmbeddingAll(true);
-      const r = await startEmbedAllSearch();
-      setEmbedProgress(r.data?.data);
-      toast.success('Job indexing started — this runs in the background');
-    } catch { toast.error('Failed to start indexing'); }
-    finally { setEmbeddingAll(false); }
-  };
-
-  const fetchJobs = useCallback(async (f = filtersRef.current, sb = sortByRef.current, so = sortOrderRef.current, lim = limitRef.current, sm = searchModeRef.current) => {
+  const fetchJobs = useCallback(async (f = filtersRef.current, sb = sortByRef.current, so = sortOrderRef.current, lim = limitRef.current) => {
     try {
       setLoading(true);
-      const q = { limit: lim, sortBy: sb, sortOrder: so, searchMode: sm };
+      const q = { limit: lim, sortBy: sb, sortOrder: so };
       Object.entries(f).forEach(([k, v]) => {
         if (v === '' || v === null || v === undefined || v === 'any') return;
         if (Array.isArray(v)) { if (v.length > 0) q[k] = v.join('|||'); }
         else q[k] = v;
       });
       const res = await getFilteredJobs(q);
-      const { jobs: j, totalAll: ta, total: t, noEmbeddings, cappedAt } = res.data.data || {};
+      const { jobs: j, totalAll: ta, total: t } = res.data.data || {};
       setTotalAll(ta || 0); setTotalFiltered(t || 0); setJobs(j || []);
-      if (noEmbeddings) {
-        toast.warning('⚠️ No indexed jobs yet — showing keyword results. Click 🧠 Index to enable AI search.', { duration: 6000 });
-      } else if (cappedAt) {
-        toast.info(`🧠 Searched most recent ${cappedAt.toLocaleString()} indexed jobs. Add a date filter for narrower results.`, { duration: 5000 });
-      }
     } catch { toast.error('Failed to fetch jobs'); }
     finally { setLoading(false); }
   }, []); // stable — takes all params explicitly
@@ -486,66 +451,6 @@ const JobsPage = () => {
                 </SelectContent>
               </Select>
             </FI>
-            {/* Search mode toggle */}
-            <TooltipProvider delayDuration={200}>
-              <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden shrink-0">
-                {[
-                  {
-                    mode: 'keyword',
-                    label: '🔤',
-                    heading: 'Keyword Search',
-                    lines: [
-                      'Every word must appear in the job (AND logic).',
-                      '"react native" → exact phrase match.',
-                      '-wordpress → exclude that word.',
-                      'Synonyms auto-expand: node → nodejs,',
-                      'frontend → react/angular/vue/svelte…',
-                    ],
-                  },
-                  {
-                    mode: 'semantic',
-                    label: '🧠',
-                    heading: 'Semantic Search',
-                    lines: [
-                      'AI understands the intent of your query —',
-                      'no keyword overlap needed.',
-                      '"build a chatbot" surfaces GPT Expert,',
-                      'Conversational AI, OpenAI Integration jobs.',
-                      'Requires jobs to be indexed first (🧠 Index button).',
-                    ],
-                  },
-                  {
-                    mode: 'hybrid',
-                    label: '⚡',
-                    heading: 'Hybrid Search',
-                    lines: [
-                      'Best of both modes.',
-                      'Keywords narrow the candidate pool first,',
-                      'then AI re-ranks those results by semantic',
-                      'similarity to your query.',
-                      'Most precise + most intelligent combined.',
-                    ],
-                  },
-                ].map(({ mode, label, heading, lines }) => (
-                  <Tooltip key={mode}>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => { setSearchMode(mode); fetchJobs(filtersRef.current, sortByRef.current, sortOrderRef.current, limitRef.current, mode); }}
-                        className={`px-2.5 py-1.5 text-xs border-r last:border-r-0 transition-colors ${searchMode === mode ? 'bg-purple-600 text-white' : 'hover:bg-gray-50 text-gray-600'}`}>
-                        {label}
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-[220px] p-3 text-xs leading-relaxed bg-gray-900 border-gray-700 text-white">
-                      <p className="font-semibold text-sm mb-1.5 text-white">{label} {heading}</p>
-                      {lines.map((line, i) => (
-                        <p key={i} className="text-gray-300">{line}</p>
-                      ))}
-                    </TooltipContent>
-                  </Tooltip>
-                ))}
-              </div>
-            </TooltipProvider>
-
             {/* Search input */}
             <div className="flex-1 min-w-[160px] max-w-xs space-y-0.5">
               <Input
@@ -554,24 +459,11 @@ const JobsPage = () => {
                 onChange={handleChange}
                 onKeyDown={e => { if (e.key === 'Enter') fetchJobs(filters); }}
                 className="h-8 text-sm px-3 border-purple-300 focus:border-purple-500 rounded-lg w-full"
-                placeholder={searchMode === 'semantic' ? '🧠 Describe what you need…' : searchMode === 'hybrid' ? '⚡ Keywords + AI ranking…' : '🔤 node, "react native", -wordpress…'}
+                placeholder="Search: unity developer, react, unreal engine…"
               />
-              {/* Persistent warning when AI modes selected but jobs not yet indexed */}
-              {(searchMode === 'semantic' || searchMode === 'hybrid') && embedProgress != null && embedProgress.embedded === 0 ? (
-                <p className="text-[10px] px-1 leading-tight text-amber-600 font-medium">
-                  ⚠️ No jobs indexed yet — click 🧠 Index to enable AI search. Showing keyword results until then.
-                </p>
-              ) : (searchMode === 'semantic' || searchMode === 'hybrid') && embedProgress != null && embedProgress.embedded < embedProgress.total ? (
-                <p className="text-[10px] px-1 leading-tight text-blue-600">
-                  🧠 {embedProgress.embedded?.toLocaleString()}/{embedProgress.total?.toLocaleString()} jobs indexed — AI search covers indexed jobs only.
-                </p>
-              ) : (
-                <p className="text-[10px] text-gray-400 px-1 leading-tight">
-                  {searchMode === 'keyword'  && <>AND logic · <span className="font-mono">"phrase"</span> · <span className="font-mono">-exclude</span> · synonyms auto-expanded</>}
-                  {searchMode === 'semantic' && <>AI matches by intent — describe what you need in plain words</>}
-                  {searchMode === 'hybrid'   && <>Keyword-filter candidates then AI-ranked by relevance</>}
-                </p>
-              )}
+              <p className="text-[10px] text-gray-400 px-1 leading-tight">
+                Comma-separated phrases · each term matched as substring in title, description &amp; category
+              </p>
             </div>
             <LoadingButton loading={loading} onClick={() => fetchJobs(filters)}
               className="h-8 px-5 text-sm bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium">
@@ -629,25 +521,6 @@ const JobsPage = () => {
           <button onClick={() => fetchJobs()} disabled={loading}
             className="p-1.5 rounded-full border hover:bg-gray-100 disabled:opacity-50" title="Refresh">
             <RotateCcw className={`w-3.5 h-3.5 text-purple-700 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-          {/* Embed All index button + progress */}
-          {embedProgress && (
-            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
-              embedProgress.running
-                ? 'bg-blue-50 border-blue-200 text-blue-700'
-                : embedProgress.embedded >= embedProgress.total
-                ? 'bg-green-50 border-green-200 text-green-700'
-                : 'bg-amber-50 border-amber-200 text-amber-700'
-            }`}>
-              {embedProgress.running
-                ? `🧠 Indexing ${embedProgress.done}/${embedProgress.total}…`
-                : `🧠 ${embedProgress.embedded?.toLocaleString()}/${embedProgress.total?.toLocaleString()} indexed`}
-            </span>
-          )}
-          <button onClick={handleEmbedAll} disabled={embeddingAll || embedProgress?.running}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs border rounded hover:bg-gray-100 disabled:opacity-40"
-            title="Index all jobs for semantic search">
-            {embeddingAll || embedProgress?.running ? <Loader2 className="w-3 h-3 animate-spin" /> : '🧠'} Index
           </button>
           <button onClick={exportCSV} disabled={!jobs.length}
             className="flex items-center gap-1 px-2.5 py-1 text-xs border rounded hover:bg-gray-100 disabled:opacity-40">
