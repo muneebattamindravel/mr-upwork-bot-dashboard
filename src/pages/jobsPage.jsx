@@ -218,8 +218,13 @@ const JobsPage = () => {
         else q[k] = v;
       });
       const res = await getFilteredJobs(q);
-      const { jobs: j, totalAll: ta, total: t } = res.data.data || {};
+      const { jobs: j, totalAll: ta, total: t, noEmbeddings, cappedAt } = res.data.data || {};
       setTotalAll(ta || 0); setTotalFiltered(t || 0); setJobs(j || []);
+      if (noEmbeddings) {
+        toast.warning('⚠️ No indexed jobs yet — showing keyword results. Click 🧠 Index to enable AI search.', { duration: 6000 });
+      } else if (cappedAt) {
+        toast.info(`🧠 Searched most recent ${cappedAt.toLocaleString()} indexed jobs. Add a date filter for narrower results.`, { duration: 5000 });
+      }
     } catch { toast.error('Failed to fetch jobs'); }
     finally { setLoading(false); }
   }, []); // stable — takes all params explicitly
