@@ -9,9 +9,11 @@ import {
   getPostingHeatmap, getHourlyDistribution, getSemanticVerdictBreakdown,
   getBudgetDistribution, getExperienceBreakdown,
   getCategoriesByCountry, getKeywordsByCategory, getMainCategoryBreakdown,
+  getAnalyticsCacheStatus, flushAnalyticsCache,
 } from '../apis/analytics';
+import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
-import { Loader2, Maximize2, X } from 'lucide-react';
+import { Loader2, Maximize2, X, RefreshCw } from 'lucide-react';
 
 const COLORS = ['#7c3aed','#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#84cc16','#f97316','#ec4899'];
 const DAYS   = [' Mon',' Tue',' Wed',' Thu',' Fri',' Sat',' Sun'];
@@ -208,6 +210,8 @@ const AnalyticsPage = () => {
   const [modalLoading, setModalLoading]         = useState(false);
   const [heatmapCountries, setHeatmapCountries] = useState([]);
   const [heatmapLoading, setHeatmapLoading]     = useState(false);
+  const [cacheInfo, setCacheInfo]               = useState(null);
+  const [flushing, setFlushing]                 = useState(false);
 
   const [countriesLimit, setCountriesLimit]   = useState(10);
   const [categoriesLimit, setCategoriesLimit] = useState(10);
@@ -255,10 +259,29 @@ const AnalyticsPage = () => {
       setExperience(exR.data.data || []);
       setCatByCountry(cbcR.data.data || []);
       setKwByCategory(kbcR.data.data || []);
+
+      // Fetch cache freshness info after all charts have been computed & cached
+      try {
+        const ciR = await getAnalyticsCacheStatus();
+        setCacheInfo(ciR.data?.data);
+      } catch {}
     } catch (err) {
       toast.error('Failed to load analytics');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForceRefresh = async () => {
+    setFlushing(true);
+    try {
+      await flushAnalyticsCache();
+      toast.success('Cache cleared — recomputing all charts…');
+      await fetchAll();
+    } catch {
+      toast.error('Failed to refresh cache');
+    } finally {
+      setFlushing(false);
     }
   };
 
@@ -434,6 +457,29 @@ const AnalyticsPage = () => {
           <button onClick={() => fetchAll()} className="btn-outline text-xs px-3 py-1.5">Refresh</button>
         </div>
       </div>
+
+      {/* Cache freshness banner */}
+      {cacheInfo?.cached && (() => {
+        const ageMs = Date.now() - new Date(cacheInfo.oldestComputedAt).getTime();
+        const nextInMin = Math.max(0, Math.round((30 * 60 * 1000 - ageMs) / 60000));
+        return (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+            <span>🗄️ Data last computed <strong className="text-gray-700">{formatDistanceToNow(new Date(cacheInfo.oldestComputedAt))} ago</strong></span>
+            <span className="text-gray-300 hidden sm:inline">·</span>
+            <span>Auto-refreshes every <strong className="text-gray-600">30 min – 2 hr</strong> per chart</span>
+            <span className="text-gray-300 hidden sm:inline">·</span>
+            {nextInMin > 0
+              ? <span>Next auto-refresh: <strong className="text-gray-700">~{nextInMin} min</strong></span>
+              : <span className="text-amber-600 font-medium">Refresh due — will recompute on next page load</span>
+            }
+            <button onClick={handleForceRefresh} disabled={flushing || loading}
+              className="ml-auto flex items-center gap-1.5 text-purple-600 font-medium hover:text-purple-800 disabled:opacity-50 transition-colors">
+              {flushing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+              Compute Now
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

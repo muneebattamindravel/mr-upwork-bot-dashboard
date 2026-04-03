@@ -16,3 +16,5 @@ export const getExperienceBreakdown      = ()                     => axios.get('
 export const getCategoriesByCountry      = (countries = 8, cats = 5) => axios.get('/analytics/categories-by-country', { params: { countries, cats } });
 export const getKeywordsByCategory       = (limit = 10)           => axios.get('/analytics/keywords-by-category', { params: { limit } });
 export const getMainCategoryBreakdown    = ()                     => axios.get('/analytics/main-category-breakdown');
+export const getAnalyticsCacheStatus     = ()                     => axios.get('/analytics/cache-status');
+export const flushAnalyticsCache         = ()                     => axios.post('/analytics/flush-cache');
