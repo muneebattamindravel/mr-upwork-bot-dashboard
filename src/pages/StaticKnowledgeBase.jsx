@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Trash2, BookOpen } from 'lucide-react';
+import { Trash2, BookOpen, Plus, X, Search, CheckCircle2 } from 'lucide-react';
 import { JsonEditor } from 'json-edit-react';
 import LoadingButton from '@/components/ui/loading-button';
 
@@ -37,128 +36,137 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const parseKeywords  = (text) => (text || '').split('\n').map(k => k.trim()).filter(Boolean);
+const serializeKeywords = (arr) => arr.join('\n');
+
 const StaticKnowledgeBase = () => {
   const navigate = useNavigate();
 
-  const [profiles, setProfiles] = useState([]);
+  const [profiles, setProfiles]           = useState([]);
   const [selectedProfile, setSelectedProfile] = useState(null);
-  const [keywordsText, setKeywordsText] = useState('');
-  const [projectsText, setProjectsText] = useState('');
-  const [weightsJson, setWeightsJson] = useState({});
+  const [keywords, setKeywords]           = useState([]);   // array of strings
+  const [weightsJson, setWeightsJson]     = useState({});
   const [newProfileName, setNewProfileName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [savingFile, setSavingFile] = useState(null);
+  const [creatingProfile, setCreatingProfile] = useState(false);
+  const [savingKeywords, setSavingKeywords] = useState(false);
+  const [savingWeights, setSavingWeights] = useState(false);
+  const [weightsChanged, setWeightsChanged] = useState(false);
+  const [keywordSearch, setKeywordSearch] = useState('');
+  const [newKeyword, setNewKeyword]       = useState('');
 
+  const weightsTimerRef = useRef(null);
+  const addInputRef     = useRef(null);
+
+  // ── Profile loading ────────────────────────────────────────────────────────
   const loadProfiles = async () => {
     try {
-      const response = await getKBList();
-      const profilesList = response.data.data.profiles || [];
-      setProfiles(profilesList);
-
-      if (profilesList.length > 0) {
-        setSelectedProfile(profilesList[0]);
-        fetchProfile(profilesList[0]._id);
+      const res = await getKBList();
+      const list = res.data.data.profiles || [];
+      setProfiles(list);
+      if (list.length > 0) {
+        setSelectedProfile(list[0]);
+        fetchProfile(list[0]._id);
       } else {
         setSelectedProfile(null);
-        setKeywordsText('');
-        setProjectsText('');
+        setKeywords([]);
         setWeightsJson({});
       }
-    } catch (err) {
-      console.error('Failed to load profiles:', err);
+    } catch {
       toast.error('Error loading profiles');
     }
   };
 
   const fetchProfile = async (profileId) => {
     if (!profileId) return;
-
-    setKeywordsText('');
-    setProjectsText('');
+    setKeywords([]);
     setWeightsJson({});
-
+    setWeightsChanged(false);
     try {
       const res = await getProfile(profileId);
       const p = res.data.data.profile;
       setSelectedProfile(p);
-      setKeywordsText(p.keywords || '');
-      setProjectsText(p.projects || '');
+      setKeywords(parseKeywords(p.keywords));
       setWeightsJson(p.weights || {});
-    } catch (err) {
-      console.error('❌ Failed to load profile:', err);
+    } catch {
       toast.error('Failed to load profile');
     }
   };
 
-  const handleSaveKeywords = async () => {
+  // ── Keyword CRUD — auto-saves immediately on each change ───────────────────
+  const persistKeywords = async (kws) => {
     if (!selectedProfile) return;
-    setSavingFile('keywords');
+    setSavingKeywords(true);
     try {
-      await updateProfile(selectedProfile._id, { keywords: keywordsText });
-      toast.success('Keywords saved');
-    } catch (err) {
-      console.error(err);
+      await updateProfile(selectedProfile._id, { keywords: serializeKeywords(kws) });
+      toast.success('Saved', { duration: 1200 });
+    } catch {
       toast.error('Failed to save keywords');
     } finally {
-      setSavingFile(null);
+      setSavingKeywords(false);
     }
   };
 
-  const handleSaveProjects = async () => {
-    if (!selectedProfile) return;
-    setSavingFile('projects');
-    try {
-      await updateProfile(selectedProfile._id, { projects: projectsText });
-      toast.success('Projects saved');
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to save projects');
-    } finally {
-      setSavingFile(null);
-    }
+  const handleAddKeyword = async () => {
+    const kw = newKeyword.trim();
+    if (!kw) return;
+    if (keywords.includes(kw)) { toast.error('Already exists'); return; }
+    const updated = [...keywords, kw];
+    setKeywords(updated);
+    setNewKeyword('');
+    addInputRef.current?.focus();
+    await persistKeywords(updated);
   };
 
-  const handleSaveWeights = async () => {
-    if (!selectedProfile) return;
-    setSavingFile('weights');
-    try {
-      await updateProfile(selectedProfile._id, { weights: weightsJson });
-      toast.success('Weights saved');
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to save weights');
-    } finally {
-      setSavingFile(null);
-    }
+  const handleDeleteKeyword = async (kw) => {
+    const updated = keywords.filter(k => k !== kw);
+    setKeywords(updated);
+    await persistKeywords(updated);
   };
 
+  // ── Weights — debounced auto-save (2 s after last edit) ───────────────────
+  const handleWeightsChange = (newData) => {
+    setWeightsJson(newData);
+    setWeightsChanged(true);
+    if (weightsTimerRef.current) clearTimeout(weightsTimerRef.current);
+    weightsTimerRef.current = setTimeout(async () => {
+      if (!selectedProfile) return;
+      setSavingWeights(true);
+      try {
+        await updateProfile(selectedProfile._id, { weights: newData });
+        setWeightsChanged(false);
+        toast.success('Weights saved', { duration: 1200 });
+      } catch {
+        toast.error('Failed to save weights');
+      } finally {
+        setSavingWeights(false);
+      }
+    }, 2000);
+  };
+
+  // ── Profile management ────────────────────────────────────────────────────
   const handleCreateProfile = async () => {
     if (!newProfileName.trim()) return toast.error('Enter a profile name');
-    setLoading(true);
+    setCreatingProfile(true);
     try {
       await createProfile({ profileName: newProfileName.trim() });
       toast.success('Profile created');
       setNewProfileName('');
       await loadProfiles();
-    } catch (err) {
-      console.error(err);
+    } catch {
       toast.error('Failed to create profile');
+    } finally {
+      setCreatingProfile(false);
     }
-    setLoading(false);
-  };
-
-  const handleSelectProfile = (id) => {
-    fetchProfile(id);
   };
 
   const handleDeleteProfile = async () => {
     if (!selectedProfile) return;
     try {
       await deleteProfile(selectedProfile._id);
-      toast.success(`Profile "${selectedProfile.profileName}" deleted`);
+      toast.success(`"${selectedProfile.profileName}" deleted`);
       await loadProfiles();
-    } catch (err) {
-      console.error(err);
+    } catch {
       toast.error('Failed to delete profile');
     }
   };
@@ -169,170 +177,243 @@ const StaticKnowledgeBase = () => {
       await toggleProfileEnabled(selectedProfile._id, e.target.checked);
       toast.success(`Profile ${e.target.checked ? 'enabled' : 'disabled'}`);
       await loadProfiles();
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to toggle status');
+    } catch {
+      toast.error('Failed to toggle');
     }
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/login');
-    } else {
-      loadProfiles();
-    }
+    if (!localStorage.getItem('token')) navigate('/login');
+    else loadProfiles();
   }, [navigate]);
 
+  // ── Derived keyword lists ──────────────────────────────────────────────────
+  const filtered       = keywordSearch
+    ? keywords.filter(k => k.toLowerCase().includes(keywordSearch.toLowerCase()))
+    : keywords;
+  const activeKeywords  = filtered.filter(k => !k.startsWith('#'));
+  const commentKeywords = filtered.filter(k => k.startsWith('#'));
+  const totalActive     = keywords.filter(k => !k.startsWith('#')).length;
+
   return (
-    <div className="p-4 max-w-screen-xl w-full space-y-6 mx-auto">
-      <div className="bg-white shadow-md rounded-md p-4 space-y-4">
-        <h1 className="text-2xl font-semibold flex items-center gap-2">
-          <BookOpen className="w-6 h-6" /> Static Knowledge Base Manager
-        </h1>
-        <div className="flex flex-col md:flex-row items-start md:items-end gap-4">
+    <div className="p-4 max-w-screen-xl w-full space-y-4 mx-auto">
+
+      {/* Page title */}
+      <h2 className="page-title">🔑 Static Knowledge Base</h2>
+
+      {/* ── Profile bar ──────────────────────────────────────────────────────── */}
+      <div className="bg-white border rounded-lg p-3 flex flex-wrap items-center gap-3">
+
+        {/* Selector */}
+        {profiles.length > 0 ? (
+          <Select onValueChange={id => fetchProfile(id)} value={selectedProfile?._id || ''}>
+            <SelectTrigger className="h-8 text-sm w-52">
+              <SelectValue placeholder="Select a profile" />
+            </SelectTrigger>
+            <SelectContent className="bg-white text-black text-sm">
+              {profiles.map(p => (
+                <SelectItem key={p._id} value={p._id}>
+                  {p.profileName}{!p.enabled && ' (Disabled)'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <span className="text-sm text-gray-400">No profiles yet</span>
+        )}
+
+        {/* Active toggle */}
+        {selectedProfile && (
+          <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+            <input type="checkbox" checked={!!selectedProfile.enabled}
+              onChange={handleToggleEnabled} className="accent-purple-600 w-4 h-4" />
+            <span className="text-gray-600">Active</span>
+          </label>
+        )}
+
+        {/* Delete */}
+        {selectedProfile && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 border border-red-200 rounded px-2 py-1 hover:bg-red-50 transition-colors">
+                <Trash2 className="w-3 h-3" /> Delete Profile
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="bg-white text-black rounded-md shadow-xl">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete "{selectedProfile.profileName}"?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently deletes the profile, all its keywords and weights.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteProfile}
+                  className="bg-red-600 hover:bg-red-700 text-white">
+                  Yes, delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+
+        <div className="w-px h-6 bg-gray-200 hidden sm:block" />
+
+        {/* Create new profile */}
+        <div className="flex items-center gap-2">
           <Input
-            className="input-field"
-            placeholder="Enter new profile name"
+            placeholder="New profile name…"
             value={newProfileName}
-            onChange={(e) => setNewProfileName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleCreateProfile();
-            }}
+            onChange={e => setNewProfileName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleCreateProfile(); }}
+            className="h-8 text-sm w-44"
           />
-          <LoadingButton loading={loading} onClick={handleCreateProfile}>
-            Create Profile
+          <LoadingButton loading={creatingProfile} onClick={handleCreateProfile}
+            className="h-8 px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded font-medium">
+            + Create
           </LoadingButton>
         </div>
-
-        {profiles.length > 0 ? (
-          <div className="flex flex-col md:flex-row items-end gap-4">
-            <div className="w-full md:w-1/2">
-              <Select
-                onValueChange={handleSelectProfile}
-                value={selectedProfile?._id || ''}
-              >
-                <SelectTrigger className="select-trigger w-full">
-                  <SelectValue placeholder="Select a profile" />
-                </SelectTrigger>
-                <SelectContent className="select-content">
-                  {profiles.map((p) => (
-                    <SelectItem key={p._id} value={p._id}>
-                      {p.profileName} {p.enabled ? '' : '(Disabled)'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {selectedProfile && (
-              <>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={selectedProfile.enabled}
-                    onChange={handleToggleEnabled}
-                  />
-                  <span className="text-sm">Enabled</span>
-                </label>
-
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <button className="btn-danger flex items-center gap-1">
-                      <Trash2 className="w-4 h-4" /> Delete
-                    </button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent className="bg-white text-black rounded-md shadow-xl">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>
-                        Delete "{selectedProfile.profileName}"?
-                      </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will permanently delete the profile.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel className="btn-outline">
-                        Cancel
-                      </AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleDeleteProfile}
-                        className="btn-danger"
-                      >
-                        Yes, delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </>
-            )}
-          </div>
-        ) : (
-          <p className="text-gray-600 text-sm">
-            No profiles found. Please create one to get started.
-          </p>
-        )}
       </div>
 
+      {/* ── Main content ──────────────────────────────────────────────────────── */}
       {selectedProfile ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-6">
-            <div className="bg-white p-4 rounded-md shadow-md">
-              <label className="field-label">Keywords</label>
-              <Textarea
-                className="w-full rounded-md border p-2 min-h-[350px]"
-                value={keywordsText}
-                onChange={(e) => setKeywordsText(e.target.value)}
-                placeholder="Keywords..."
-              />
-              <LoadingButton
-                onClick={handleSaveKeywords}
-                loading={savingFile === 'keywords'}
-                className="mt-2"
-              >
-                Save Keywords
-              </LoadingButton>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+          {/* ── Keywords panel ────────────────────────────────────────────────── */}
+          <div className="bg-white border rounded-lg p-4 flex flex-col gap-3">
+
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-gray-800">🔑 Keywords</span>
+                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+                  {totalActive} active
+                </span>
+                {keywords.filter(k => k.startsWith('#')).length > 0 && (
+                  <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                    {keywords.filter(k => k.startsWith('#')).length} commented
+                  </span>
+                )}
+              </div>
+              {savingKeywords && (
+                <span className="text-xs text-gray-400 animate-pulse">Saving…</span>
+              )}
             </div>
 
-            <div className="bg-white p-4 rounded-md shadow-md">
-              <label className="field-label">Projects</label>
-              <Textarea
-                className="w-full rounded-md border p-2 min-h-[350px]"
-                value={projectsText}
-                onChange={(e) => setProjectsText(e.target.value)}
-                placeholder="Projects..."
+            {/* Search / filter */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+              <Input
+                value={keywordSearch}
+                onChange={e => setKeywordSearch(e.target.value)}
+                placeholder="Filter keywords…"
+                className="h-8 text-sm pl-8 pr-7"
               />
-              <LoadingButton
-                onClick={handleSaveProjects}
-                loading={savingFile === 'projects'}
-                className="mt-2"
-              >
-                Save Projects
-              </LoadingButton>
+              {keywordSearch && (
+                <button onClick={() => setKeywordSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
+
+            {/* Tag cloud */}
+            <div className="min-h-[220px] max-h-[400px] overflow-y-auto rounded-lg border border-gray-100 bg-gray-50 p-3 flex flex-wrap gap-2 content-start">
+              {activeKeywords.length === 0 && commentKeywords.length === 0 && (
+                <p className="text-sm text-gray-400 w-full text-center pt-10">
+                  {keywordSearch ? 'No keywords match your search.' : 'No keywords yet — add one below.'}
+                </p>
+              )}
+
+              {/* Active keywords */}
+              {activeKeywords.map(kw => (
+                <span key={kw}
+                  className="inline-flex items-center gap-1 bg-purple-100 text-purple-800 text-xs font-medium px-2.5 py-1 rounded-full">
+                  {kw}
+                  <button onClick={() => handleDeleteKeyword(kw)}
+                    className="text-purple-400 hover:text-red-500 transition-colors ml-0.5"
+                    title="Remove keyword">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+
+              {/* Commented-out keywords */}
+              {commentKeywords.map(kw => (
+                <span key={kw}
+                  className="inline-flex items-center gap-1 bg-gray-100 text-gray-400 text-xs italic px-2.5 py-1 rounded-full"
+                  title="Commented out — not used in scoring">
+                  {kw}
+                  <button onClick={() => handleDeleteKeyword(kw)}
+                    className="text-gray-300 hover:text-red-400 transition-colors ml-0.5">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+
+            {/* Add keyword row */}
+            <div className="flex items-center gap-2">
+              <Input
+                ref={addInputRef}
+                value={newKeyword}
+                onChange={e => setNewKeyword(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleAddKeyword(); }}
+                placeholder="Type a keyword and press Enter…"
+                className="h-8 text-sm flex-1"
+              />
+              <button onClick={handleAddKeyword}
+                className="h-8 w-8 flex items-center justify-center bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors shrink-0"
+                title="Add keyword">
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Each keyword is matched against job titles, descriptions &amp; categories.
+              Prefix with <code className="bg-gray-100 px-1 rounded text-[11px]">#</code> to
+              temporarily disable a keyword without deleting it.
+            </p>
           </div>
 
-          <div className="bg-white p-4 rounded-md shadow-md space-y-4">
-            <label className="field-label">Weights</label>
-            <JsonEditor
-              data={weightsJson}
-              setData={setWeightsJson}
-              className="json-editor text-sm"
-            />
-            <LoadingButton
-              onClick={handleSaveWeights}
-              loading={savingFile === 'weights'}
-              className="mt-2"
-            >
-              Save Weights
-            </LoadingButton>
+          {/* ── Weights panel ─────────────────────────────────────────────────── */}
+          <div className="bg-white border rounded-lg p-4 flex flex-col gap-3">
+
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-gray-800">⚖️ Scoring Weights</span>
+              <div className="flex items-center gap-2 text-xs">
+                {savingWeights && (
+                  <span className="text-gray-400 animate-pulse">Saving…</span>
+                )}
+                {!savingWeights && weightsChanged && (
+                  <span className="text-amber-600 font-medium">● Unsaved changes</span>
+                )}
+                {!savingWeights && !weightsChanged && (
+                  <span className="flex items-center gap-1 text-green-600">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Saved
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-400">
+              Changes auto-save 2 seconds after you stop editing.
+            </p>
+
+            <div className="flex-1 overflow-y-auto max-h-[500px]">
+              <JsonEditor
+                data={weightsJson}
+                setData={handleWeightsChange}
+                className="json-editor text-sm"
+              />
+            </div>
           </div>
         </div>
       ) : (
-        <div className="bg-white p-4 rounded-md shadow-md">
-          <p className="text-gray-600 text-center">
-            No profile selected. Please create one above.
-          </p>
+        <div className="bg-white border rounded-lg p-12 flex flex-col items-center gap-3 text-center">
+          <BookOpen className="w-10 h-10 text-gray-300" />
+          <p className="text-gray-500">Create a profile above to get started.</p>
         </div>
       )}
     </div>

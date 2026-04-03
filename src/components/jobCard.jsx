@@ -208,11 +208,11 @@ const JobCard = ({ job, compact = false }) => {
                     <div className="shrink-0 flex items-center gap-2 text-sm">
                         {/* Static Relevance Breakdown with Semantic Tooltip */}
                         <div className="text-gray-700 flex items-center gap-1 whitespace-nowrap">
-                            🔑 {keywordScore}% | 📊 {fieldScore}% |{" "}
+                            🔑 Keyword {keywordScore}% | 📊 Field {fieldScore}% |{" "}
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <span className="underline cursor-help text-blue-700 font-medium whitespace-nowrap">
-                                        🤖 {job.semanticRelevance?.score ?? "N/A"}%
+                                        🤖 Semantic {job.semanticRelevance?.score ?? "N/A"}%
                                     </span>
                                 </TooltipTrigger>
                                 <TooltipContent side="bottom" className="max-w-sm p-2 text-sm bg-gray-900 border-gray-700 text-white">
@@ -234,7 +234,7 @@ const JobCard = ({ job, compact = false }) => {
                             className={`font-semibold text-white px-2.5 py-1 rounded shadow whitespace-nowrap ${getRelevanceColor(relevanceScore)}`}
                             title="Rule-Based Relevance"
                         >
-                            {relevanceScore}%
+                            Relevance: {relevanceScore}%
                         </span>
 
                         {/* Reprocess button */}
