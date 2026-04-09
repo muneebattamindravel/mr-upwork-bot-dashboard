@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import {
   TrendingUp, Briefcase, Wrench, Package, Users, DollarSign,
   Lightbulb, Target, ChevronDown, ChevronUp, RefreshCw, Loader2,
-  BarChart2, Star, ArrowLeft, Clock, AlertCircle,
+  BarChart2, Star, ArrowLeft, Clock, AlertCircle, ShieldCheck,
 } from 'lucide-react';
 import {
   getInsightCategories,
@@ -82,9 +82,15 @@ const ReportView = ({ report, stats, category, jobsAnalyzed, generatedAt, onBack
             <ArrowLeft className="w-3 h-3" /> All Categories
           </button>
           <h1 className="text-xl font-bold text-gray-900">{category}</h1>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {jobsAnalyzed} jobs analyzed · Generated {fmtDate(generatedAt)}
-          </p>
+          <div className="flex flex-wrap items-center gap-3 mt-1">
+            <p className="text-xs text-gray-500">
+              {jobsAnalyzed} jobs analyzed · Generated {fmtDate(generatedAt)}
+            </p>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+              <ShieldCheck className="w-3 h-3" />
+              Cached · Free to view · No API cost
+            </span>
+          </div>
         </div>
       </div>
 
@@ -305,13 +311,16 @@ const CategoryCard = ({ cat, onGenerate, onView, polling }) => {
 };
 
 // ── Main page ─────────────────────────────────────────────────────────────────
+const SAMPLE_OPTIONS = [100, 250, 500, 750, 1000];
+
 export default function MarketIntelligence() {
-  const [categories, setCategories]   = useState([]);
-  const [loading, setLoading]         = useState(true);
-  const [viewCategory, setViewCategory] = useState(null); // category name being viewed
-  const [reportData, setReportData]   = useState(null);   // full report doc
+  const [categories, setCategories]     = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [viewCategory, setViewCategory] = useState(null);
+  const [reportData, setReportData]     = useState(null);
   const [reportLoading, setReportLoading] = useState(false);
-  const pollingRef                    = useRef(null);
+  const [sampleSize, setSampleSize]     = useState(500);
+  const pollingRef                      = useRef(null);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -342,13 +351,11 @@ export default function MarketIntelligence() {
 
   const handleGenerate = async (category) => {
     try {
-      // Optimistically set running
       setCategories(prev => prev.map(c =>
         c.category === category ? { ...c, status: 'running', progress: 'Starting...' } : c
       ));
-      await generateInsightReport(category);
-      toast.success(`Report generation started for "${category}"`);
-      // Start polling
+      await generateInsightReport(category, sampleSize);
+      toast.success(`Generating report for "${category}" · ${sampleSize} jobs`);
       if (!pollingRef.current) pollingRef.current = setInterval(fetchCategories, 4000);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to start generation');
@@ -403,24 +410,52 @@ export default function MarketIntelligence() {
   return (
     <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-5">
       {/* Page header */}
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-purple-600" />
             Market Intelligence
           </h1>
-          <p className="text-xs text-gray-500 mt-1">
-            AI-generated market reports per category — skills, tools, deliverables, client profiles & portfolio recommendations.
-            Each report analyzes up to 500 most recent jobs. Cost ≈ $0.12/report.
+          <p className="text-xs text-gray-500 mt-1 max-w-xl">
+            AI-generated reports per category — skills, tools, deliverables, client profiles & portfolio recommendations.
+            Reports are <strong>cached permanently</strong> — only costs credits when you click Generate/Regenerate.
           </p>
         </div>
         <button
           onClick={() => fetchCategories()}
           className="shrink-0 p-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-500"
-          title="Refresh"
+          title="Refresh list"
         >
           <RefreshCw className="w-4 h-4" />
         </button>
+      </div>
+
+      {/* Sample size + cost estimate */}
+      <div className="flex flex-wrap items-center gap-3 p-3 bg-purple-50 border border-purple-100 rounded-xl text-xs text-gray-600">
+        <span className="font-medium text-purple-700">Sample size per report:</span>
+        <div className="flex gap-1">
+          {SAMPLE_OPTIONS.map(n => (
+            <button
+              key={n}
+              onClick={() => setSampleSize(n)}
+              className={`px-3 py-1 rounded-lg font-medium border transition-colors ${
+                sampleSize === n
+                  ? 'bg-purple-600 text-white border-purple-600'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-purple-300'
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+        <span className="text-gray-400">·</span>
+        <span className="text-gray-500">
+          Est. cost: <strong className="text-gray-700">~${(sampleSize * 0.00024).toFixed(2)}/report</strong>
+          {' '}· Viewing reports is always free
+        </span>
+        <span className="ml-auto flex items-center gap-1 text-green-700 font-medium">
+          <ShieldCheck className="w-3 h-3" /> Reports cached in DB — no re-charge on view
+        </span>
       </div>
 
       {/* Summary bar */}
