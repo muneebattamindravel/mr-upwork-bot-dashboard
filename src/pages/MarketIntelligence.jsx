@@ -158,7 +158,7 @@ const ReportView = ({ report, stats, category, jobsAnalyzed, generatedAt, onBack
               {report.deliverables.map((d, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <span className="text-xs text-gray-500 w-4">{i + 1}.</span>
-                  <span className="text-sm text-gray-800 flex-1">{d.type}</span>
+                  <span className="text-sm text-gray-800 flex-1">{d.name || d.type}</span>
                   <span className="text-xs text-gray-400">{d.mentions}</span>
                   <MiniBar value={d.mentions} max={delivMax} color="bg-orange-400" />
                 </div>
