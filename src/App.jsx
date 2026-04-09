@@ -16,6 +16,7 @@ import AnalyticsPage from './pages/analyticsPage';
 import Playground from './pages/Playground';
 import UserManagement from './pages/UserManagement'; // deploy
 import JobDetailPage from './pages/JobDetailPage';
+import MarketIntelligence from './pages/MarketIntelligence';
 
 const App = () => {
   return (
@@ -124,6 +125,17 @@ const App = () => {
               <PrivateRoute>
                 <Layout>
                   <JobDetailPage />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/market-intelligence"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <MarketIntelligence />
                 </Layout>
               </PrivateRoute>
             }

@@ -9,6 +9,7 @@ import {
   X,
   FlaskConical,
   Users,
+  TrendingUp,
 } from 'lucide-react';
 
 const currentUserRole = () => {
@@ -87,6 +88,17 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       >
         <BarChart2 className="w-5 h-5" />
         Analytics
+      </NavLink>
+
+      <NavLink
+        to="/market-intelligence"
+        className={({ isActive }) =>
+          `${navItemClass} ${isActive ? activeClass : 'hover:bg-white hover:bg-opacity-10'}`
+        }
+        onClick={() => setIsOpen(false)}
+      >
+        <TrendingUp className="w-5 h-5" />
+        Market Intelligence
       </NavLink>
 
       <NavLink
