@@ -119,7 +119,9 @@ const JobCard = ({ job, compact = false }) => {
             toast.success('Proposal generated!');
             if (openModalAfter) setShowProposal(true);
         } catch (err) {
-            toast.error('Failed to generate proposal');
+            const apiMsg = err?.response?.data?.message;
+            toast.error(apiMsg ? `Proposal failed: ${apiMsg}` : 'Failed to generate proposal');
+            console.error('[generateProposal]', err?.response?.data || err.message);
         } finally {
             setLoadingProposal(false);
         }
