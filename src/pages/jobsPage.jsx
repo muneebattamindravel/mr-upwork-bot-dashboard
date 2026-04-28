@@ -7,7 +7,7 @@ import LoadingButton from '@/components/ui/loading-button';
 import JobCard from '@/components/jobCard';
 import { getFilteredJobs } from '@/apis/jobs';
 import { getTopCountries } from '@/apis/analytics';
-import { subDays, format } from 'date-fns';
+import { subDays, subHours, format } from 'date-fns';
 import { RotateCcw, Download, SlidersHorizontal, X, Loader2, LayoutList, AlignJustify, Wifi, WifiOff } from 'lucide-react';
 import { reprocessJobsStaticOnly, deleteAllJobs } from '../apis/jobs';
 import axios from '../apis/axios';
@@ -126,7 +126,7 @@ const JobsPage = () => {
   const [jobs, setJobs]                   = useState([]);
   const [loading, setLoading]             = useState(false);
   const [showFilters, setShowFilters]     = useState(true);
-  const [dateRange, setDateRange]         = useState('last3d');
+  const [dateRange, setDateRange]         = useState('last24h');
   const [sortBy, setSortBy]               = useState('postedDate');
   const [sortOrder, setSortOrder]         = useState('desc');
   const [deleting, setDeleting]           = useState(false);
@@ -195,9 +195,16 @@ const JobsPage = () => {
 
   const applyDateRange = (range, cur = filters) => {
     const now = new Date();
-    const starts = { last24h: 1, last3d: 3, last7d: 7, last30d: 30, all: 365 * 20 };
-    if (!starts[range]) return;
-    const updated = { ...cur, startDate: format(subDays(now, starts[range]), 'yyyy-MM-dd'), endDate: format(now, 'yyyy-MM-dd') };
+    let startDate;
+    // Sub-day ranges: use ISO strings to preserve the time component for accurate filtering
+    if (range === 'last3h')  { startDate = subHours(now, 3).toISOString(); }
+    else if (range === 'last12h') { startDate = subHours(now, 12).toISOString(); }
+    else {
+      const days = { last24h: 1, last3d: 3, last7d: 7, last30d: 30, all: 365 * 20 };
+      if (!days[range]) return;
+      startDate = format(subDays(now, days[range]), 'yyyy-MM-dd');
+    }
+    const updated = { ...cur, startDate, endDate: format(now, 'yyyy-MM-dd') };
     setFilters(updated);
     fetchJobs(updated);
   };
@@ -337,7 +344,8 @@ const JobsPage = () => {
               <Select value={dateRange} onValueChange={v => { setDateRange(v); if (v !== 'custom') applyDateRange(v); }}>
                 <SelectTrigger className="h-7 text-xs px-2 w-28 border-gray-200"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-white text-black text-xs">
-                  {[{ value: 'last24h', label: 'Last 24h' }, { value: 'last3d', label: 'Last 3d' },
+                  {[{ value: 'last3h', label: 'Last 3h' }, { value: 'last12h', label: 'Last 12h' },
+                    { value: 'last24h', label: 'Last 24h' }, { value: 'last3d', label: 'Last 3d' },
                     { value: 'last7d', label: 'Last 7d' }, { value: 'last30d', label: 'Last 30d' },
                     { value: 'all', label: 'All time' }, { value: 'custom', label: 'Custom' }]
                     .map(o => <SelectItem key={o.value} value={o.value} className="text-xs py-1">{o.label}</SelectItem>)}
