@@ -119,8 +119,14 @@ const JobCard = ({ job, compact = false }) => {
             toast.success('Proposal generated!');
             if (openModalAfter) setShowProposal(true);
         } catch (err) {
-            const apiMsg = err?.response?.data?.message;
-            toast.error(apiMsg ? `Proposal failed: ${apiMsg}` : 'Failed to generate proposal');
+            const apiMsg = err?.response?.data?.message || '';
+            let toastMsg = apiMsg || 'Failed to generate proposal';
+            if (apiMsg.includes('429') || apiMsg.includes('quota') || apiMsg.includes('exceeded')) {
+                toastMsg = 'OpenAI quota exceeded — add credits at platform.openai.com/settings/billing';
+            } else if (apiMsg.includes('401') || apiMsg.includes('Incorrect API key')) {
+                toastMsg = 'Invalid OpenAI API key — check OPENAI_API_KEY in brain .env';
+            }
+            toast.error(toastMsg, { duration: 6000 });
             console.error('[generateProposal]', err?.response?.data || err.message);
         } finally {
             setLoadingProposal(false);
