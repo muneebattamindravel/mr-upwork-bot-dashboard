@@ -64,7 +64,7 @@ const ChartCard = ({ title, loading, onExpand, children }) => (
 
 // ── Expand Modal ───────────────────────────────────────────────────────────────
 const ExpandModal = ({ title, onClose, children }) => (
-  <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+  <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3 sm:p-4">
     <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-5 py-3 border-b">
         <div className="font-semibold text-gray-800">{title}</div>
@@ -445,7 +445,7 @@ const AnalyticsPage = () => {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="page-title">📊 Analytics</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <label className="text-sm text-gray-600">Range:</label>
           <select value={timeRange} onChange={e => setTimeRange(Number(e.target.value))}
             className="text-sm border rounded px-2 py-1">
@@ -673,7 +673,7 @@ const AnalyticsPage = () => {
       </div>
 
       {/* Row: 3 Pie Charts — Profile Match + Main Category + Job Category */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <ChartCard title="🧠 Jobs by Profile Match" loading={loading}>
           {profileBreakdown.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>

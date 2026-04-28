@@ -283,27 +283,27 @@ const JobsPage = () => {
       {/* ── Header ── */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="page-title">🧠 Job Listings</h2>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {/* View toggle */}
           <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
             <button onClick={() => setViewMode('detailed')}
-              className={`px-2.5 py-1.5 text-xs flex items-center gap-1 transition-colors ${viewMode === 'detailed' ? 'bg-purple-600 text-white' : 'hover:bg-gray-50 text-gray-600'}`}
+              className={`px-2 py-1.5 text-xs flex items-center gap-1 transition-colors ${viewMode === 'detailed' ? 'bg-purple-600 text-white' : 'hover:bg-gray-50 text-gray-600'}`}
               title="Full card view">
-              <LayoutList className="w-3.5 h-3.5" /> Full
+              <LayoutList className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Full</span>
             </button>
             <button onClick={() => setViewMode('compact')}
-              className={`px-2.5 py-1.5 text-xs flex items-center gap-1 border-l transition-colors ${viewMode === 'compact' ? 'bg-purple-600 text-white' : 'hover:bg-gray-50 text-gray-600'}`}
+              className={`px-2 py-1.5 text-xs flex items-center gap-1 border-l transition-colors ${viewMode === 'compact' ? 'bg-purple-600 text-white' : 'hover:bg-gray-50 text-gray-600'}`}
               title="Compact list view">
-              <AlignJustify className="w-3.5 h-3.5" /> Compact
+              <AlignJustify className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Compact</span>
             </button>
           </div>
           <button onClick={handleReprocess} disabled={reprocessing}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs border rounded hover:bg-gray-100 disabled:opacity-40">
-            {reprocessing ? <Loader2 className="w-3 h-3 animate-spin" /> : '🔄'} Reprocess
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 text-xs border rounded hover:bg-gray-100 disabled:opacity-40">
+            {reprocessing ? <Loader2 className="w-3 h-3 animate-spin" /> : '🔄'} <span className="hidden sm:inline">Reprocess</span>
           </button>
           <button onClick={handleDelete} disabled={deleting}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs border rounded hover:bg-gray-100 text-red-600 disabled:opacity-40">
-            {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : '🗑️'} Delete All
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 text-xs border rounded hover:bg-gray-100 text-red-600 disabled:opacity-40">
+            {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : '🗑️'} <span className="hidden sm:inline">Delete All</span>
           </button>
         </div>
       </div>
@@ -418,10 +418,10 @@ const JobsPage = () => {
           <div className="border-t border-gray-200" />
 
           {/* Row 3 — Sort + Search + Apply */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <FI label="Sort">
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="h-7 text-xs px-2 w-36 border-gray-200"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-7 text-xs px-2 w-32 sm:w-36 border-gray-200"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-white text-black text-xs">
                   <SelectItem value="postedDate"     className="text-xs py-1">📅 Posted Date</SelectItem>
                   <SelectItem value="relevanceScore" className="text-xs py-1">🧠 Relevance</SelectItem>
@@ -432,7 +432,7 @@ const JobsPage = () => {
             </FI>
             <FI label="Order">
               <Select value={sortOrder} onValueChange={setSortOrder}>
-                <SelectTrigger className="h-7 text-xs px-2 w-28 border-gray-200"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-7 text-xs px-2 w-24 sm:w-28 border-gray-200"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-white text-black text-xs">
                   <SelectItem value="desc" className="text-xs py-1">↓ Highest</SelectItem>
                   <SelectItem value="asc"  className="text-xs py-1">↑ Lowest</SelectItem>
@@ -445,11 +445,11 @@ const JobsPage = () => {
               value={filters.keyword}
               onChange={handleChange}
               onKeyDown={e => { if (e.key === 'Enter') fetchJobs(filters); }}
-              className="h-7 text-xs px-3 border-purple-300 focus:border-purple-500 rounded-lg flex-1 min-w-[180px] max-w-sm"
-              placeholder="Search: unity developer, react, unreal engine…"
+              className="h-7 text-xs px-3 border-purple-300 focus:border-purple-500 rounded-lg flex-1 min-w-[120px] max-w-sm"
+              placeholder="Search keywords…"
             />
             <LoadingButton loading={loading} onClick={() => fetchJobs(filters)}
-              className="h-7 px-5 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium shrink-0">
+              className="h-7 px-4 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium shrink-0">
               Apply
             </LoadingButton>
           </div>
@@ -460,9 +460,9 @@ const JobsPage = () => {
       )}
 
       {/* ── Results bar ── */}
-      <div className="flex items-center justify-between flex-wrap gap-3 py-2.5 px-1 border-b border-gray-100">
+      <div className="flex items-center justify-between flex-wrap gap-2 py-2.5 px-1 border-b border-gray-100">
         {/* Left: counts + live status */}
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="text-sm font-semibold">
             <span className="text-purple-700 text-base font-bold">{jobs.length.toLocaleString()}</span>
             <span className="text-gray-400 mx-1 font-normal">/</span>

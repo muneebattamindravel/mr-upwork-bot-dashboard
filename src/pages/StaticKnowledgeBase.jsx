@@ -207,7 +207,7 @@ const StaticKnowledgeBase = () => {
         {/* Selector */}
         {profiles.length > 0 ? (
           <Select onValueChange={id => fetchProfile(id)} value={selectedProfile?._id || ''}>
-            <SelectTrigger className="h-8 text-sm w-52">
+            <SelectTrigger className="h-8 text-sm w-40 sm:w-52">
               <SelectValue placeholder="Select a profile" />
             </SelectTrigger>
             <SelectContent className="bg-white text-black text-sm">
@@ -260,13 +260,13 @@ const StaticKnowledgeBase = () => {
         <div className="w-px h-6 bg-gray-200 hidden sm:block" />
 
         {/* Create new profile */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
           <Input
             placeholder="New profile name…"
             value={newProfileName}
             onChange={e => setNewProfileName(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleCreateProfile(); }}
-            className="h-8 text-sm w-44"
+            className="h-8 text-sm w-36 sm:w-44 flex-1 max-w-[176px]"
           />
           <LoadingButton loading={creatingProfile} onClick={handleCreateProfile}
             className="h-8 px-3 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded font-medium">

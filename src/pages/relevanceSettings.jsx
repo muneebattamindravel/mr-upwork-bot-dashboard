@@ -280,21 +280,23 @@ const RelevanceSettings = () => {
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200 flex-wrap">
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === tab.id
-                ? 'border-purple-600 text-purple-700'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Tabs — horizontally scrollable on mobile */}
+      <div className="overflow-x-auto -mx-4 px-4">
+        <div className="flex gap-1 border-b border-gray-200 min-w-max">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'border-purple-600 text-purple-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Tab: Static Relevance ─────────────────────────────────────────── */}
@@ -611,7 +613,8 @@ const RelevanceSettings = () => {
             To get a category URL: go to upwork.com → search → apply a category filter → copy the URL from your browser.
           </p>
 
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden overflow-x-auto">
+            <div className="min-w-[500px]">
             {/* Table header */}
             <div className="grid grid-cols-[1fr_2fr_auto] gap-3 px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wide">
               <span>Category Name</span>
@@ -679,6 +682,7 @@ const RelevanceSettings = () => {
                 <Plus className="w-5 h-5" />
               </button>
             </div>
+            </div>{/* end min-w wrapper */}
           </div>
 
           <div className="flex justify-end">

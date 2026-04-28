@@ -92,19 +92,19 @@ export default function JobDetailPage() {
     <div className="p-4 max-w-5xl mx-auto space-y-5">
 
         {/* ── Title card ── */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sm:p-6">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-1">
                 {job.mainCategory && <Badge color="purple">{job.mainCategory}</Badge>}
                 {job.jobCategory  && <Badge color="blue">{job.jobCategory}</Badge>}
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 leading-tight">{job.title}</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 leading-tight">{job.title}</h1>
               <button onClick={() => copy(job.title)} className="mt-1 flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600">
                 <Copy className="w-3 h-3" /> Copy title
               </button>
             </div>
-            <div className="flex flex-col items-end gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
               <Badge color={scoreColor}>Relevance: {score}%</Badge>
               {semanticRelevance.verdict && <Badge color={verdictColor}>AI: {semanticRelevance.verdict}</Badge>}
             </div>

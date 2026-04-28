@@ -432,13 +432,13 @@ export default function MarketIntelligence() {
 
       {/* Sample size + cost estimate */}
       <div className="flex flex-wrap items-center gap-3 p-3 bg-purple-50 border border-purple-100 rounded-xl text-xs text-gray-600">
-        <span className="font-medium text-purple-700">Sample size per report:</span>
-        <div className="flex gap-1">
+        <span className="font-medium text-purple-700">Sample size:</span>
+        <div className="flex flex-wrap gap-1">
           {SAMPLE_OPTIONS.map(n => (
             <button
               key={n}
               onClick={() => setSampleSize(n)}
-              className={`px-3 py-1 rounded-lg font-medium border transition-colors ${
+              className={`px-2.5 py-1 rounded-lg font-medium border transition-colors ${
                 sampleSize === n
                   ? 'bg-purple-600 text-white border-purple-600'
                   : 'bg-white text-gray-600 border-gray-200 hover:border-purple-300'
@@ -448,13 +448,11 @@ export default function MarketIntelligence() {
             </button>
           ))}
         </div>
-        <span className="text-gray-400">·</span>
         <span className="text-gray-500">
           Est. cost: <strong className="text-gray-700">~${(sampleSize * 0.00024).toFixed(2)}/report</strong>
-          {' '}· Viewing reports is always free
         </span>
-        <span className="ml-auto flex items-center gap-1 text-green-700 font-medium">
-          <ShieldCheck className="w-3 h-3" /> Reports cached in DB — no re-charge on view
+        <span className="flex items-center gap-1 text-green-700 font-medium">
+          <ShieldCheck className="w-3 h-3" /> Cached — free to view
         </span>
       </div>
 

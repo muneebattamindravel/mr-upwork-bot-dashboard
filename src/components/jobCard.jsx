@@ -156,7 +156,7 @@ const JobCard = ({ job, compact = false }) => {
             ? (maxRange || minRange) ? `$${maxRange || minRange}` : ''
             : (minRange || maxRange) ? `$${minRange}–${maxRange}/hr` : '';
         return (
-            <div className="bg-white border rounded-lg px-3 py-2 flex items-center gap-3 hover:bg-gray-50 group">
+            <div className="bg-white border rounded-lg px-3 py-2 flex items-center gap-2 hover:bg-gray-50 group">
                 <span className={`text-sm font-bold w-10 text-right shrink-0 ${scoreColor}`}>{score}%</span>
                 <span className="text-xs shrink-0">{verdictEmoji}</span>
                 <a href={`/jobs/${job._id}`} target="_blank" rel="noopener noreferrer"
@@ -164,12 +164,12 @@ const JobCard = ({ job, compact = false }) => {
                     {title}
                 </a>
                 <button onClick={() => copyText(title)}
-                    className="opacity-0 group-hover:opacity-100 shrink-0 p-1 rounded hover:bg-gray-200 transition-opacity">
+                    className="opacity-0 group-hover:opacity-100 shrink-0 p-1 rounded hover:bg-gray-200 transition-opacity hidden sm:flex">
                     <Copy className="w-3 h-3 text-gray-400" />
                 </button>
-                {budget && <span className="text-xs text-green-700 font-medium shrink-0">{budget}</span>}
-                {clientCountry && <span className="text-xs text-gray-400 shrink-0">{clientCountry}</span>}
-                {postedDateLabel && <span className="text-xs text-gray-400 shrink-0 hidden sm:block">📅 {postedDateLabel}</span>}
+                {budget && <span className="text-xs text-green-700 font-medium shrink-0 hidden xs:block">{budget}</span>}
+                {clientCountry && <span className="text-xs text-gray-400 shrink-0 hidden sm:block">{clientCountry}</span>}
+                {postedDateLabel && <span className="text-xs text-gray-400 shrink-0 hidden lg:block">📅 {postedDateLabel}</span>}
                 <a href={job.url} target="_blank" rel="noopener noreferrer"
                     className="opacity-0 group-hover:opacity-100 shrink-0 p-1 rounded hover:bg-gray-200 transition-opacity">
                     <ExternalLink className="w-3 h-3 text-gray-400" />
@@ -182,12 +182,12 @@ const JobCard = ({ job, compact = false }) => {
         <div className="bg-white shadow-md border rounded-lg p-4 space-y-3 relative">
             {/* Header */}
             <TooltipProvider>
-                <div className="flex items-start gap-3">
-                    {/* Left: title + date — takes remaining space, wraps internally */}
+                <div className="flex flex-col gap-2">
+                    {/* Title row */}
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                             <a href={`/jobs/${job._id}`} target="_blank" rel="noopener noreferrer"
-                                className="text-lg font-semibold text-blue-700 hover:underline">
+                                className="text-base sm:text-lg font-semibold text-blue-700 hover:underline">
                                 {title}
                             </a>
                             <button onClick={() => copyText(title)}
@@ -206,10 +206,10 @@ const JobCard = ({ job, compact = false }) => {
                         )}
                     </div>
 
-                    {/* Right: scores — shrink-0 so they never wrap to next line */}
-                    <div className="shrink-0 flex items-center gap-2 text-sm">
+                    {/* Scores row — wraps on mobile */}
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
                         {/* Static Relevance Breakdown with Semantic Tooltip */}
-                        <div className="text-gray-700 flex items-center gap-1 whitespace-nowrap">
+                        <div className="text-gray-700 flex items-center gap-1 flex-wrap text-xs sm:text-sm">
                             🔑 Keyword {keywordScore}% | 📊 Field {fieldScore}% |{" "}
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -233,7 +233,7 @@ const JobCard = ({ job, compact = false }) => {
 
                         {/* Rule-Based Relevance Score Badge */}
                         <span
-                            className={`font-semibold text-white px-2.5 py-1 rounded shadow whitespace-nowrap ${getRelevanceColor(relevanceScore)}`}
+                            className={`font-semibold text-white px-2.5 py-1 rounded shadow whitespace-nowrap text-xs sm:text-sm ${getRelevanceColor(relevanceScore)}`}
                             title="Rule-Based Relevance"
                         >
                             Relevance: {relevanceScore}%
@@ -243,7 +243,7 @@ const JobCard = ({ job, compact = false }) => {
                         <button
                             onClick={handleReprocess}
                             disabled={reprocessing}
-                            className="ml-2 p-1 border rounded hover:bg-gray-100 transition flex items-center justify-center"
+                            className="p-1 border rounded hover:bg-gray-100 transition flex items-center justify-center"
                             title="Reprocess this job"
                         >
                             {reprocessing ? (
@@ -276,6 +276,7 @@ const JobCard = ({ job, compact = false }) => {
                     </div>
                 </div>
             </TooltipProvider>
+
 
 
             {/* Relevance Summary */}
@@ -412,12 +413,12 @@ const JobCard = ({ job, compact = false }) => {
             {/* Description Modal */}
             {showDescription && (
                 <div
-                    className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
-                    onClick={() => setShowDescription(false)} // 👉 backdrop click closes modal
+                    className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-3"
+                    onClick={() => setShowDescription(false)}
                 >
                     <div
-                        className="bg-white rounded-lg p-6 max-w-2xl max-h-[80vh] overflow-y-auto relative"
-                        onClick={(e) => e.stopPropagation()} // 👉 stop closing when clicking inside modal
+                        className="bg-white rounded-lg p-5 w-full max-w-2xl max-h-[85vh] overflow-y-auto relative"
+                        onClick={(e) => e.stopPropagation()}
                     >
                         <button
                             onClick={() => setShowDescription(false)}
@@ -433,11 +434,11 @@ const JobCard = ({ job, compact = false }) => {
 
             {showProposal && (
                 <div
-                    className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+                    className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-3"
                     onClick={() => setShowProposal(false)}
                 >
                     <div
-                        className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] flex flex-col relative"
+                        className="bg-white rounded-lg p-5 w-full max-w-2xl max-h-[90vh] flex flex-col relative"
                         onClick={e => e.stopPropagation()}
                     >
                         <button onClick={() => setShowProposal(false)} className="absolute top-2 right-2 text-gray-500 hover:text-gray-800">

@@ -98,13 +98,13 @@ export default function Playground() {
   };
 
   return (
-    <div className="p-4 h-[calc(100vh-5rem)] flex flex-col gap-3 max-w-5xl">
+    <div className="p-4 h-[calc(100vh-5rem)] flex flex-col gap-3 max-w-5xl w-full">
 
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="page-title">🧪 BD Playground</h2>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-gray-400 italic">Searches across all profiles</span>
+          <span className="text-xs text-gray-400 italic hidden sm:inline">Searches across all profiles</span>
           <button
             onClick={handleClearChat}
             className="btn-outline text-xs px-3 py-1.5 flex items-center gap-1 text-red-500 border-red-200 hover:bg-red-50"
@@ -117,7 +117,7 @@ export default function Playground() {
       <div className="flex gap-4 flex-1 min-h-0">
 
         {/* Chat area */}
-        <div className="flex flex-col flex-1 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="flex flex-col flex-1 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden min-w-0">
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">

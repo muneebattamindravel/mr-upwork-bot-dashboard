@@ -119,9 +119,9 @@ const BotSettingsModal = ({ botId, onClose }) => {
     if (!settings) return <div className="p-6">Loading...</div>;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-3">
             <div
-                className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl overflow-y-auto max-h-[90vh] relative"
+                className="bg-white rounded-lg shadow-lg p-4 sm:p-6 w-full max-w-2xl overflow-y-auto max-h-[90vh] relative"
             >
                 {/* Close button */}
                 <button
@@ -359,7 +359,7 @@ const BotSettingsModal = ({ botId, onClose }) => {
                         </select>
                     </div>
 
-                    <div className="flex gap-4">
+                    <div className="flex flex-wrap gap-3">
                         <LoadingButton loading={isSaving} onClick={saveSettings}>
                             Save Changes
                         </LoadingButton>

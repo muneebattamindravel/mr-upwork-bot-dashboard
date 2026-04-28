@@ -39,8 +39,8 @@ const CreateUserModal = ({ onClose, onCreated }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3">
+      <div className="bg-white rounded-xl shadow-xl p-5 w-full max-w-md">
         <h3 className="text-lg font-bold mb-4 text-purple-800">Create New User</h3>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
@@ -102,8 +102,8 @@ const ChangePasswordModal = ({ user, onClose, onDone }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3">
+      <div className="bg-white rounded-xl shadow-xl p-5 w-full max-w-sm">
         <h3 className="text-lg font-bold mb-4">Change Password — {user.username}</h3>
         <form onSubmit={handleSubmit} className="space-y-3">
           <input className="input-field w-full" type="password" placeholder="New password (min 6 chars)"
@@ -230,7 +230,7 @@ const UserManagement = () => {
 
                 {/* Actions — only editable if not self and not superAdmin */}
                 {!isSelf && !isSuperAdmin && (
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap shrink-0">
                     {/* Role select */}
                     <select
                       value={user.role}
