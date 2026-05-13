@@ -9,7 +9,6 @@ import { getFilteredJobs } from '@/apis/jobs';
 import { getTopCountries } from '@/apis/analytics';
 import { subDays, subHours, format } from 'date-fns';
 import { RotateCcw, Download, SlidersHorizontal, X, Loader2, LayoutList, AlignJustify, Wifi, WifiOff } from 'lucide-react';
-import { reprocessJobsStaticOnly, deleteAllJobs } from '../apis/jobs';
 import axios from '../apis/axios';
 import { io } from 'socket.io-client';
 
@@ -129,10 +128,8 @@ const JobsPage = () => {
   const [dateRange, setDateRange]         = useState('last24h');
   const [sortBy, setSortBy]               = useState('postedDate');
   const [sortOrder, setSortOrder]         = useState('desc');
-  const [deleting, setDeleting]           = useState(false);
   const [totalAll, setTotalAll]           = useState(0);
   const [totalFiltered, setTotalFiltered] = useState(0);
-  const [reprocessing, setReprocessing]   = useState(false);
   const [profiles, setProfiles]           = useState([]);
   const [scraperCategories, setScraperCategories] = useState([]);
   const [topCountries, setTopCountries]           = useState([]);
@@ -244,32 +241,34 @@ const JobsPage = () => {
     fetchJobs(c, 'postedDate', 'desc', limit);
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm('Delete ALL jobs? This is irreversible.')) return;
-    setDeleting(true);
-    try { await deleteAllJobs(); toast.success('All jobs deleted'); window.location.reload(); }
-    catch { toast.error('Failed'); } finally { setDeleting(false); }
-  };
-
-  const handleReprocess = async () => {
-    try { setReprocessing(true); const r = await reprocessJobsStaticOnly(); toast.success(r.data.message || 'Reprocessed'); await fetchJobs(); }
-    catch { toast.error('Failed to reprocess'); } finally { setReprocessing(false); }
-  };
-
   const exportCSV = () => {
     if (!jobs.length) return toast.error('No jobs to export');
-    const h = ['Title', 'URL', 'Category', 'Posted', 'Pricing', 'MinBudget', 'MaxBudget', 'Country', 'ClientSpend', 'Score', 'Verdict'];
+    // CSV-safe quote: wraps every value in "..." and escapes embedded quotes.
+    // Also collapses newlines + tabs to spaces so descriptions stay on one row.
+    const q = (v) => {
+      const s = v == null ? '' : String(v).replace(/[\r\n\t]+/g, ' ').replace(/"/g, '""');
+      return `"${s}"`;
+    };
+    const h = ['Title', 'URL', 'Category', 'Posted', 'Pricing', 'MinBudget', 'MaxBudget', 'Country', 'ClientSpend', 'Score', 'Verdict', 'Description'];
     const rows = jobs.map(j => [
-      `"${(j.title || '').replace(/"/g, '""')}"`, j.url || '',
-      `"${(j.mainCategory || '').replace(/"/g, '""')}"`,
-      j.postedDate ? format(new Date(j.postedDate), 'yyyy-MM-dd') : '',
-      j.pricingModel || '', j.minRange || 0, j.maxRange || 0,
-      j.clientCountry || '', j.clientSpend || 0,
-      j.relevance?.relevanceScore || 0, j.semanticRelevance?.verdict || '',
+      q(j.title),
+      q(j.url),
+      q(j.mainCategory),
+      q(j.postedDate ? format(new Date(j.postedDate), 'yyyy-MM-dd') : ''),
+      q(j.pricingModel),
+      j.minRange || 0,
+      j.maxRange || 0,
+      q(j.clientCountry),
+      j.clientSpend || 0,
+      j.relevance?.relevanceScore || 0,
+      q(j.semanticRelevance?.verdict),
+      q(j.description),
     ]);
-    const csv = [h.join(','), ...rows.map(r => r.join(','))].join('\n');
+    // Prefix with BOM so Excel detects UTF-8 (job descriptions often have
+    // non-ASCII chars like em-dashes, smart quotes, accented letters).
+    const csv = '﻿' + [h.join(','), ...rows.map(r => r.join(','))].join('\n');
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     link.download = `jobs-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     link.click();
     toast.success(`Exported ${jobs.length} jobs`);
@@ -304,14 +303,6 @@ const JobsPage = () => {
               <AlignJustify className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Compact</span>
             </button>
           </div>
-          <button onClick={handleReprocess} disabled={reprocessing}
-            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 text-xs border rounded hover:bg-gray-100 disabled:opacity-40">
-            {reprocessing ? <Loader2 className="w-3 h-3 animate-spin" /> : '🔄'} <span className="hidden sm:inline">Reprocess</span>
-          </button>
-          <button onClick={handleDelete} disabled={deleting}
-            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 text-xs border rounded hover:bg-gray-100 text-red-600 disabled:opacity-40">
-            {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : '🗑️'} <span className="hidden sm:inline">Delete All</span>
-          </button>
         </div>
       </div>
 
