@@ -52,29 +52,34 @@ const isBotOnline = (bot) => {
   return (Date.now() - new Date(bot.lastSeen).getTime()) < interval * 5;
 };
 
+// Break down a ms duration into mo/d/h/m/s. "Months" is approximate (30 days).
+const breakdownDuration = (ms) => {
+  const totalSecs = Math.max(0, Math.floor(ms / 1000));
+  const mo = Math.floor(totalSecs / (30 * 86400));
+  const d  = Math.floor((totalSecs % (30 * 86400)) / 86400);
+  const h  = Math.floor((totalSecs % 86400) / 3600);
+  const m  = Math.floor((totalSecs % 3600) / 60);
+  const s  = totalSecs % 60;
+  return { mo, d, h, m, s };
+};
+
+// Show the 2 most-significant non-zero units so the label stays compact:
+// "1mo 3d", "2d 4h", "5h 32m", "7m 12s", "45s".
 const formatDuration = (ms) => {
   if (!ms || ms <= 0) return '—';
-  const totalSecs = Math.floor(ms / 1000);
-  const h = Math.floor(totalSecs / 3600);
-  const m = Math.floor((totalSecs % 3600) / 60);
-  const s = totalSecs % 60;
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${s}s`;
+  const { mo, d, h, m, s } = breakdownDuration(ms);
+  if (mo > 0) return d > 0 ? `${mo}mo ${d}d` : `${mo}mo`;
+  if (d  > 0) return h > 0 ? `${d}d ${h}h`   : `${d}d`;
+  if (h  > 0) return m > 0 ? `${h}h ${m}m`   : `${h}h`;
+  if (m  > 0) return s > 0 ? `${m}m ${s}s`   : `${m}m`;
   return `${s}s`;
 };
 
 const formatTimeAgo = (input) => {
   if (!input) return 'never';
   const diff = Math.max(0, Date.now() - new Date(input).getTime());
-  const totalSecs = Math.floor(diff / 1000);
-  const h = Math.floor(totalSecs / 3600);
-  const m = Math.floor((totalSecs % 3600) / 60);
-  const s = totalSecs % 60;
-  const parts = [];
-  if (h) parts.push(h + 'h');
-  if (m || h) parts.push(m + 'm');
-  parts.push(s + 's');
-  return parts.join(' ') + ' ago';
+  if (diff < 1000) return 'just now';
+  return `${formatDuration(diff)} ago`;
 };
 
 // ─── Module-level sub-components ──────────────────────────────────────────────
