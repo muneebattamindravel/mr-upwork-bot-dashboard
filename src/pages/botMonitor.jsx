@@ -568,6 +568,7 @@ const BotMonitor = () => {
       botId, status, message, jobUrl, lastSeen, healthStatus, forceStopped,
       stats, sessionStartedAt, lastCycleStartedAt, lastCycleEndedAt,
       lastCycleDurationMs, avgCycleDurationMs, currentProgress,
+      lastJobIngestedAt, lastCycleProgressAt,
     }) => {
       // Record per-bot socket update time for Live/Polling badge
       socketLastSeenRef.current[botId] = Date.now();
@@ -586,6 +587,8 @@ const BotMonitor = () => {
               lastCycleDurationMs: lastCycleDurationMs ?? b.lastCycleDurationMs,
               avgCycleDurationMs:  avgCycleDurationMs  ?? b.avgCycleDurationMs,
               currentProgress:     currentProgress     ?? b.currentProgress,
+              lastJobIngestedAt:   lastJobIngestedAt   ?? b.lastJobIngestedAt,
+              lastCycleProgressAt: lastCycleProgressAt ?? b.lastCycleProgressAt,
             }
           : b
       ));
@@ -691,6 +694,34 @@ const BotMonitor = () => {
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="p-4 space-y-4">
+
+      {/* Stuck-bot banner — shown only when at least one bot is in healthStatus=stuck */}
+      {summary.stuck > 0 && (
+        <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 px-4 py-3 flex items-start gap-3 shadow-sm">
+          <div className="text-2xl leading-none mt-0.5">⚠️</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-bold text-yellow-900">
+              {summary.stuck} {summary.stuck === 1 ? 'bot is' : 'bots are'} stuck — no progress detected
+            </div>
+            <ul className="mt-1 space-y-0.5 text-sm text-yellow-900">
+              {bots.filter(b => b.healthStatus === 'stuck').map(b => (
+                <li key={b.botId} className="flex flex-wrap items-center gap-x-2">
+                  <code className="font-mono text-xs bg-yellow-100 px-1.5 py-0.5 rounded">{b.botId}</code>
+                  <span className="text-xs">
+                    status: <strong>{b.status || 'unknown'}</strong>
+                    {b.lastJobIngestedAt && (
+                      <> · last job ingested <strong>{formatTimeAgo(b.lastJobIngestedAt)}</strong></>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1.5 text-xs text-yellow-800">
+              The scraper is heartbeating but the cycle isn't advancing (Cloudflare loop, AHK crash, or page-load freeze). SSH into EC2 and restart the agent.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Summary cards — 4 columns */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
