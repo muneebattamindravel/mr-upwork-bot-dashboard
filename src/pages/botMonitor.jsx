@@ -1,4 +1,5 @@
 'use client';
+// Scraper Monitor — real-time bot health dashboard.
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
