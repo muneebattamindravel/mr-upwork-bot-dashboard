@@ -219,7 +219,8 @@ export default function JobDetailPage() {
               {(job.clientCity || job.clientCountry) && (
                 <div className="flex items-center gap-1.5 text-sm text-gray-700 mb-3">
                   <MapPin className="w-4 h-4 text-gray-400" />
-                  {countryToFlag(job.clientCountry)} {[job.clientCity, job.clientCountry].filter(Boolean).join(', ')}
+                  <span className="text-xl leading-none">{countryToFlag(job.clientCountry)}</span>
+                  <span>{[job.clientCity, job.clientCountry].filter(Boolean).join(', ')}</span>
                 </div>
               )}
               <div className="flex gap-3 mb-3">

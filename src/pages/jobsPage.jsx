@@ -5,6 +5,7 @@ import { Select, SelectItem, SelectTrigger, SelectContent, SelectValue } from '@
 import { toast } from 'sonner';
 import LoadingButton from '@/components/ui/loading-button';
 import JobCard from '@/components/jobCard';
+import QuickPills from '@/components/QuickPills';
 import { getFilteredJobs } from '@/apis/jobs';
 import { getTopCountries } from '@/apis/analytics';
 import { subDays, subHours, format } from 'date-fns';
@@ -241,6 +242,24 @@ const JobsPage = () => {
     fetchJobs(c, 'postedDate', 'desc', limit);
   };
 
+  // Quick-pill handler — merges the pill's patch into current filters, or
+  // clears just the patch's keys back to defaults when the same pill is
+  // tapped again (so pills toggle cleanly without wiping unrelated state).
+  const handleQuickPill = (patch, alreadyActive) => {
+    const next = alreadyActive
+      ? Object.keys(patch).reduce((acc, k) => ({ ...acc, [k]: defaultFilters[k] }), { ...filters })
+      : { ...filters, ...patch };
+    setFilters(next);
+    fetchJobs(next);
+  };
+
+  // Sort-pill handler — sort lives outside of `filters` in this page, so
+  // we bump the sort state directly and re-fetch.
+  const handleQuickSort = ({ sortBy: sb, sortOrder: so }) => {
+    setSortBy(sb); setSortOrder(so);
+    fetchJobs(filters, sb, so, limit);
+  };
+
   const exportCSV = () => {
     if (!jobs.length) return toast.error('No jobs to export');
     // CSV-safe quote: wraps every value in "..." and escapes embedded quotes.
@@ -457,6 +476,17 @@ const JobsPage = () => {
           </p>
         </div>
       )}
+
+      {/* ── Quick filter pills (mirror of the mobile app) ── */}
+      <QuickPills
+        filters={filters}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onApplyPatch={handleQuickPill}
+        onApplySort={handleQuickSort}
+        onClear={clearFilters}
+        disabled={loading}
+      />
 
       {/* ── Results bar ── */}
       <div className="flex items-center justify-between flex-wrap gap-2 py-2.5 px-1 border-b border-gray-100">

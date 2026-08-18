@@ -175,7 +175,12 @@ const JobCard = ({ job, compact = false }) => {
                     <Copy className="w-3 h-3 text-gray-400" />
                 </button>
                 {budget && <span className="text-xs text-green-700 font-medium shrink-0 hidden xs:block">{budget}</span>}
-                {clientCountry && <span className="text-xs text-gray-400 shrink-0 hidden sm:block">{countryToFlag(clientCountry)} {clientCountry}</span>}
+                {clientCountry && (
+                    <span className="text-xs text-gray-400 shrink-0 hidden sm:flex items-center gap-1">
+                        <span className="text-base leading-none">{countryToFlag(clientCountry)}</span>
+                        {clientCountry}
+                    </span>
+                )}
                 {postedDateLabel && <span className="text-xs text-gray-400 shrink-0 hidden lg:block">📅 {postedDateLabel}</span>}
                 <a href={job.url} target="_blank" rel="noopener noreferrer"
                     className="opacity-0 group-hover:opacity-100 shrink-0 p-1 rounded hover:bg-gray-200 transition-opacity">
@@ -390,9 +395,10 @@ const JobCard = ({ job, compact = false }) => {
 
             {/* Client Info */}
             <div className="border-t pt-2 text-sm grid grid-cols-1 md:grid-cols-2 gap-2 text-gray-700">
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                     <MapPin className="w-4 h-4" />
-                    {countryToFlag(clientCountry)} {clientCity}, {clientCountry}
+                    <span className="text-lg leading-none">{countryToFlag(clientCountry)}</span>
+                    <span>{clientCity}, {clientCountry}</span>
                 </div>
                 <div className="flex items-center gap-1">
                     <BadgeCheck className="w-4 h-4" />
