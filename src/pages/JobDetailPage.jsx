@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { getJobById } from '../apis/jobs';
 import { formatDistanceToNow, format } from 'date-fns';
-import { MapPin, BadgeCheck, PhoneCall, Copy, Loader2 } from 'lucide-react';
+import { MapPin, BadgeCheck, PhoneCall, Copy, Loader2, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { countryToFlag } from '../utils/countryFlags';
 
 const copy = (text) => { navigator.clipboard.writeText(text); toast.success('Copied!'); };
 
@@ -129,10 +130,17 @@ export default function JobDetailPage() {
             </div>
           )}
 
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-2 mt-4 flex-wrap">
             <button onClick={() => copy(job.url)}
               className="inline-flex items-center gap-1.5 px-4 py-2 border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm rounded-lg">
               <Copy className="w-4 h-4" /> Copy URL
+            </button>
+            <button
+              onClick={() => copy(`${window.location.origin}/jobs/${job._id}`)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 text-sm rounded-lg"
+              title="Share this job with a teammate — opens directly in MRUpworkBot"
+            >
+              <Share2 className="w-4 h-4" /> Copy MRUpworkBot Link
             </button>
           </div>
         </div>
@@ -211,7 +219,7 @@ export default function JobDetailPage() {
               {(job.clientCity || job.clientCountry) && (
                 <div className="flex items-center gap-1.5 text-sm text-gray-700 mb-3">
                   <MapPin className="w-4 h-4 text-gray-400" />
-                  {[job.clientCity, job.clientCountry].filter(Boolean).join(', ')}
+                  {countryToFlag(job.clientCountry)} {[job.clientCity, job.clientCountry].filter(Boolean).join(', ')}
                 </div>
               )}
               <div className="flex gap-3 mb-3">

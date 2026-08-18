@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { formatDistanceToNow, format, isValid } from 'date-fns';
 import { BadgeCheck, PhoneCall, MapPin, ChevronDown, ChevronUp, X, RotateCcw, Copy, RefreshCw, ExternalLink } from 'lucide-react';
 import { reprocessSingleJob, generateProposal } from '../apis/jobs';
+import { countryToFlag } from '../utils/countryFlags';
 import { toast } from "sonner";
 
 const copyText = (text) => { navigator.clipboard.writeText(text); toast.success('Copied!'); };
@@ -174,7 +175,7 @@ const JobCard = ({ job, compact = false }) => {
                     <Copy className="w-3 h-3 text-gray-400" />
                 </button>
                 {budget && <span className="text-xs text-green-700 font-medium shrink-0 hidden xs:block">{budget}</span>}
-                {clientCountry && <span className="text-xs text-gray-400 shrink-0 hidden sm:block">{clientCountry}</span>}
+                {clientCountry && <span className="text-xs text-gray-400 shrink-0 hidden sm:block">{countryToFlag(clientCountry)} {clientCountry}</span>}
                 {postedDateLabel && <span className="text-xs text-gray-400 shrink-0 hidden lg:block">📅 {postedDateLabel}</span>}
                 <a href={job.url} target="_blank" rel="noopener noreferrer"
                     className="opacity-0 group-hover:opacity-100 shrink-0 p-1 rounded hover:bg-gray-200 transition-opacity">
@@ -391,7 +392,7 @@ const JobCard = ({ job, compact = false }) => {
             <div className="border-t pt-2 text-sm grid grid-cols-1 md:grid-cols-2 gap-2 text-gray-700">
                 <div className="flex items-center gap-1">
                     <MapPin className="w-4 h-4" />
-                    {clientCity}, {clientCountry}
+                    {countryToFlag(clientCountry)} {clientCity}, {clientCountry}
                 </div>
                 <div className="flex items-center gap-1">
                     <BadgeCheck className="w-4 h-4" />
